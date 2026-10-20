@@ -1,0 +1,5 @@
+# 本机运行时的配置（复制成 .dev.vars 再填写；也可以只把 key 存到 ~/.deepseek_key）
+DEEPSEEK_API_KEY=sk-xxxx
+# DEEPSEEK_MODEL=deepseek-flash
+# DEEPSEEK_MODEL_PRO=deepseek-v4-pro
+# SITE_PASSWORD=给网站设一个访问密码（用 --lan 让手机访问时建议设置）

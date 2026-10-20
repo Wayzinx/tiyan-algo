@@ -1,0 +1,16 @@
+{
+  "name": "题眼算法陪练",
+  "short_name": "题眼",
+  "description": "AI 老师陪你刷 Python 算法题：题型教程、在线判题、批改讲解、动画演示、变体出题和间隔复习。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F1F4EF",
+  "theme_color": "#F1F4EF",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
