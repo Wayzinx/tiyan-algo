@@ -80,7 +80,8 @@ function viewWorkspace({ id }) {
   const subBtn = h("button", { class: "btn primary sm", type: "button", title: "⌘/Ctrl + Shift + Enter" }, icon("check"), "提交");
   const reviewBtn = h("button", { class: "btn sm", type: "button" }, "AI 批改");
   const resetBtn = h("button", { class: "btn ghost sm", type: "button" }, "清空重写");
-  right.append(h("div", { class: "ed-bar" }, runBtn, subBtn, h("span", { class: "sp" }), reviewBtn, resetBtn), edWrap, results);
+  const pyLink = h("a", { class: "btn ghost sm", href: "#py", target: "_blank", rel: "noopener", title: "在新标签页打开 Python 语法速查" }, "Python 速查 ↗");
+  right.append(h("div", { class: "ed-bar" }, runBtn, subBtn, h("span", { class: "sp" }), pyLink, reviewBtn, resetBtn), edWrap, results);
 
   const draftKey = "tiyan:draft:" + id;
   const d0 = prog(id);

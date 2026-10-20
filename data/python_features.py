@@ -1,0 +1,714 @@
+GROUPS = ["语法糖与基础", "内置数据结构", "排序与函数工具", "函数、递归与类", "输入输出", "易错点与速查"]
+
+SECTIONS = [
+    dict(
+        id="py-slice", group="语法糖与基础", title="切片与解包",
+        summary="用短语法截取、反转、拷贝和拆包。",
+        md="""### 语法要点
+切片写作 `a[start:stop:step]`，左闭右开，不写表示到边界。`a[::-1]` 常用来反转，`a[:]` 是浅拷贝，`a[i:j]` 会复制一段新列表或新字符串。步长为负数时从右往左走，边界也要跟着反向理解。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 取前 k 个 | `a[:k]` |
+| 去掉前 k 个 | `a[k:]` |
+| 取中间 `[l, r)` | `a[l:r]` |
+| 反转 | `a[::-1]` |
+| 浅拷贝列表 | `a[:]` 或 `a.copy()` |
+| 交换变量 | `x, y = y, x` |
+| 拆首尾 | `first, *mid, last = a` |
+
+刷题时看到“子数组副本、字符串反转、旋转、去头去尾”可以想到切片。注意切片适合写得短，但会复制；如果在双指针循环里频繁 `s[l:r]`，总复杂度可能从 O(n) 变成 O(n^2)。解包适合同时更新状态，例如斐波那契、交换、返回多个值。星号解包会生成列表，数据很大时不要滥用。""",
+        examples=[
+            dict(title="反转与步长", code="""a = [1, 2, 3, 4, 5]\nprint("反转:", a[::-1])\nprint("隔一个取:", a[::2])\nprint("中间步长:", a[1:5:2])"""),
+            dict(title="拷贝与原地修改", code="""a = [1, 2, 3]\nb = a[:]\na[0] = 99\nprint("原列表:", a)\nprint("切片副本:", b)"""),
+            dict(title="解包与交换", code="""nums = [10, 20, 30, 40]\nfirst, *middle, last = nums\nx, y = 1, 2\nx, y = y, x\nprint(first, middle, last)\nprint("交换后:", x, y)"""),
+        ],
+        algo="反转字符串、旋转数组、取窗口副本、同时更新两个变量时最常用。性能敏感的滑窗不要反复切片。",
+        pitfalls=["`a[i:j]` 会复制，循环里频繁使用可能超时", "二维列表用切片只会浅拷贝内层列表", "负步长切片的边界和正向不同，写不准时先用 `[::-1]` 再切"],
+        complexity=[["a[i:j]", "O(j-i)，会复制"], ["a[::-1]", "O(n)"], ["x, y = y, x", "O(1)"]],
+    ),
+    dict(
+        id="py-comprehension", group="语法糖与基础", title="推导式与生成器",
+        summary="一行构造列表、集合、字典或懒序列。",
+        md="""### 语法要点
+推导式把“遍历、过滤、映射”合在一起，适合刷题里快速造数组、哈希表和候选集合。列表推导式返回 list，集合推导式返回 set，字典推导式返回 dict。生成器表达式用圆括号，不一次性存所有元素，常配合 `sum`、`any`、`all`、`min`、`max`。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 平方数组 | `[x*x for x in nums]` |
+| 只保留偶数 | `[x for x in nums if x % 2 == 0]` |
+| 值到下标 | `{x: i for i, x in enumerate(nums)}` |
+| 去重后变换 | `{x % 10 for x in nums}` |
+| 统计满足条件个数 | `sum(1 for x in nums if ok(x))` |
+| 拉平成一层 | `[x for row in mat for x in row]` |
+
+刷题时，如果一个循环只是在构造新容器，可以优先想到推导式。嵌套推导式的顺序和普通双重循环一致：先写外层 `for row in mat`，再写内层 `for x in row`。如果逻辑超过一两个条件，普通循环更清楚，也更方便调试。""",
+        examples=[
+            dict(title="列表集合字典推导", code="""nums = [1, 2, 2, 3, 4]\nsquares = [x * x for x in nums if x % 2 == 0]\nmods = {x % 3 for x in nums}\npos = {x: i for i, x in enumerate(nums)}\nprint("平方:", squares)\nprint("余数集合:", mods)\nprint("最后位置:", pos)"""),
+            dict(title="生成器省内存计数", code="""nums = [3, -1, 0, 5, 8]\npositive = sum(1 for x in nums if x > 0)\nall_small = all(x < 10 for x in nums)\nany_negative = any(x < 0 for x in nums)\nprint("正数个数:", positive)\nprint("都小于10:", all_small)\nprint("存在负数:", any_negative)"""),
+            dict(title="嵌套推导拉平矩阵", code="""matrix = [[1, 2], [3, 4], [5, 6]]\nflat = [x for row in matrix for x in row]\ncoords = [(r, c) for r, row in enumerate(matrix) for c, x in enumerate(row) if x % 2 == 0]\nprint("拉平:", flat)\nprint("偶数坐标:", coords)"""),
+        ],
+        algo="构造前缀候选、过滤数组、建立值到下标映射、统计满足条件的元素时很顺手。生成器适合只消费一次的计数和判定。",
+        pitfalls=["嵌套推导式顺序容易写反，按普通 for 循环顺序读", "生成器只能迭代一次，复用要重新创建", "复杂逻辑硬塞一行会降低可读性"],
+        complexity=[["[f(x) for x in nums]", "O(n) 时间，O(n) 空间"], ["sum(1 for ...)", "O(n) 时间，O(1) 额外空间"]],
+    ),
+    dict(
+        id="py-iter", group="语法糖与基础", title="enumerate / zip / range / reversed",
+        summary="写清下标遍历、并行遍历和倒序遍历。",
+        md="""### 语法要点
+`enumerate(nums)` 同时给出下标和值，比 `range(len(nums))` 更不容易写错。`zip(a, b)` 并行遍历多个序列，长度按最短的停止。`range(start, stop, step)` 是惰性整数序列，不会真的生成列表。`reversed(seq)` 返回反向迭代器，适合倒序读；如果需要下标，常用 `range(n - 1, -1, -1)`。
+
+**常见写法对照**
+
+| 场景 | 写法 |
+|---|---|
+| 下标和值 | `for i, x in enumerate(nums):` |
+| 下标从 1 开始 | `enumerate(nums, 1)` |
+| 同时遍历两数组 | `for x, y in zip(a, b):` |
+| 倒序下标 | `for i in range(n - 1, -1, -1):` |
+| 倒序值 | `for x in reversed(nums):` |
+| 矩阵转置 | `list(zip(*matrix))` |
+
+刷题时，遍历相邻、合并两个数组、检查两个字符串对应字符、从后往前 DP，都可以想到这些工具。`zip(*matrix)` 是星号解包的典型用法，可以把行拆开再按列打包。注意 `zip` 结果是迭代器，想打印或多次使用要转成 list。""",
+        examples=[
+            dict(title="下标和值", code="""nums = [5, 7, 9]\nfor i, x in enumerate(nums):\n    print("位置和值:", i, x)"""),
+            dict(title="并行遍历与差值", code="""a = [1, 3, 6]\nb = [2, 4, 8]\ndiff = [y - x for x, y in zip(a, b)]\nprint("差值:", diff)\nprint("配对:", list(zip(a, b)))"""),
+            dict(title="倒序与转置", code="""nums = [10, 20, 30]\nprint("倒序值:", list(reversed(nums)))\nprint("倒序下标:", list(range(len(nums) - 1, -1, -1)))\nmatrix = [[1, 2, 3], [4, 5, 6]]\nprint("转置:", list(zip(*matrix)))"""),
+        ],
+        algo="数组扫描、双字符串比较、后缀 DP、矩阵按列处理都常用。需要修改原数组元素时，用下标遍历更合适。",
+        pitfalls=["`zip` 按最短序列截断，长度不同可能丢数据", "`reversed` 返回迭代器，不是列表", "倒序 `range` 的 stop 仍然不包含，写到 0 要用 `-1`"],
+        complexity=[["enumerate / zip / reversed", "遍历 O(n)，额外 O(1)"], ["list(zip(*matrix))", "O(mn) 时间和空间"]],
+    ),
+    dict(
+        id="py-expr", group="语法糖与基础", title="表达式小技巧",
+        summary="用表达式压缩边界判断和候选选择。",
+        md="""### 语法要点
+Python 很多表达式适合刷题里少写临时变量。三元表达式写作 `a if cond else b`。链式比较 `l <= x < r` 等价于 `l <= x and x < r`，边界判断更清楚。海象运算符 `:=` 可以在表达式中赋值，适合 `while` 读数据或缓存一次计算结果。`any` / `all` 用来做存在性和全称判断，遇到结果后会短路。`divmod(x, y)` 一次拿商和余数。`max` / `min` 可传 `key`，空序列时用 `default` 避免报错。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 条件取值 | `ans = x if ok else y` |
+| 判断区间 | `0 <= r < m and 0 <= c < n` |
+| 存在偶数 | `any(x % 2 == 0 for x in nums)` |
+| 全为正数 | `all(x > 0 for x in nums)` |
+| 同取商余 | `q, r = divmod(x, k)` |
+| 按长度取最长 | `max(words, key=len, default="")` |
+
+这些写法适合把边界、候选和判定写得短。不要为了炫技把复杂分支写成一行；面试中可读性比少几行更重要。""",
+        examples=[
+            dict(title="三元与链式比较", code="""x = 7\nlabel = "inside" if 1 <= x <= 10 else "outside"\nprint("区间:", label)\nprint("合法坐标:", 0 <= 2 < 3 and 0 <= 4 < 5)"""),
+            dict(title="any all 与 default", code="""nums = [1, 3, 5]\nprint("有偶数:", any(x % 2 == 0 for x in nums))\nprint("全为正:", all(x > 0 for x in nums))\nprint("空列表最大值:", max([], default=-1))"""),
+            dict(title="divmod 与 key", code="""steps = 17\nq, r = divmod(steps, 5)\nwords = ["a", "leetcode", "py"]\nprint("商余:", q, r)\nprint("最长单词:", max(words, key=len))"""),
+            dict(title="海象运算符", code="""nums = [2, 4, 6, 9]\nif (n := len(nums)) >= 4:\n    print("长度:", n)\nfirst_big = next((x for x in nums if (y := x * x) > 40), None)\nprint("第一个平方大于40的数:", first_big)"""),
+        ],
+        algo="边界检查、候选比较、空数组兜底、按规则取最大最小时常用。`any/all` 特别适合图遍历或数组检查后的布尔返回。",
+        pitfalls=["三元表达式顺序是 `真值 if 条件 else 假值`，和其他语言不同", "`max([])` 会报错，空序列要给 `default`", "海象运算符不要滥用，复杂表达式会难读"],
+        complexity=[["any/all", "最坏 O(n)，支持短路"], ["max(nums, key=f)", "O(n)，每个元素计算一次 key"]],
+    ),
+    dict(
+        id="py-string", group="语法糖与基础", title="字符串操作",
+        summary="拆分、拼接、判字符和做字母映射。",
+        md="""### 语法要点
+字符串是不可变对象，任何修改都会产生新字符串。刷题里常用 `split` 拆词，`join` 拼接答案，`strip` 去掉两端空白或指定字符。字符判断有 `isalnum`、`isdigit`、`isalpha`，大小写统一用 `lower` 或 `upper`。字母和数字下标转换常用 `ord(c) - ord('a')`，反向用 `chr(ord('a') + i)`。格式化输出用 f-string。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 按空白拆 | `s.split()` |
+| 按逗号拆 | `s.split(',')` |
+| 列表拼字符串 | `''.join(chars)` |
+| 去两端空白 | `s.strip()` |
+| 判断字母数字 | `c.isalnum()` |
+| 字母下标 | `ord(c) - ord('a')` |
+
+如果需要在循环中构造长字符串，先把片段放进列表，最后 `''.join(parts)`，不要一直 `ans += c`。回文、字符串清洗、词频、模拟栈输出都离不开这些方法。注意 `strip` 只处理两端，不会删中间字符。""",
+        examples=[
+            dict(title="拆分清洗与拼接", code="""s = "  A man, a plan  "\nwords = s.strip().lower().split()\nprint("单词:", words)\nprint("短横线拼接:", "-".join(words))"""),
+            dict(title="字符判断与回文清洗", code="""s = "A man, a plan, 1!"\nchars = [c.lower() for c in s if c.isalnum()]\nclean = "".join(chars)\nprint("清洗后:", clean)\nprint("是否回文:", clean == clean[::-1])"""),
+            dict(title="ord chr 与计数", code="""cnt = [0] * 26\nfor c in "banana":\n    cnt[ord(c) - ord('a')] += 1\nfor i, v in enumerate(cnt):\n    if v:\n        print(chr(ord('a') + i), v)"""),
+            dict(title="f-string 输出", code="""name = "path"\nlength = 12\nprint(f"{name} length={length}")\nprint(f"平均值={7 / 3:.2f}")"""),
+        ],
+        algo="字符串清洗、回文判断、字母计数、构造答案时使用。大量拼接优先列表加 join。",
+        pitfalls=["字符串不可变，循环 `+=` 可能退化为高复杂度", "`strip` 只删两端，不删中间", "`isdigit` 不等于只判断 ASCII 数字，题目严格时可用 `'0' <= c <= '9'`"],
+        complexity=[["s.split()", "O(n)"], ["sep.join(parts)", "O(总长度)"], ["c in s", "O(n)"]],
+    ),
+    dict(
+        id="py-number", group="语法糖与基础", title="整数与数学",
+        summary="掌握整除、取模、无穷大和数学库。",
+        md="""### 语法要点
+Python 整数没有固定宽度，刷题里通常不用担心溢出。`//` 是向下取整，不是向 0 取整；所以负数时 `-3 // 2 == -2`，`-3 % 2 == 1`，满足 `a == (a // b) * b + a % b`。向上取整常写 `ceil(a / b)`，整数正数场景可写 `(a + b - 1) // b`。哨兵值常用 `float('inf')` 和 `-float('inf')`。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 最大公约数 | `math.gcd(a, b)` |
+| 最小公倍数 | `math.lcm(a, b)` |
+| 整数平方根 | `math.isqrt(n)` |
+| 组合数 | `math.comb(n, k)` |
+| 快速幂取模 | `pow(a, b, mod)` |
+| 正数向上整除 | `(a + b - 1) // b` |
+
+浮点数有误差，比较时不要直接判断相等，常用 `abs(a - b) < 1e-9`。涉及几何、平均数、二分答案时尤其要注意。`pow(a, b, mod)` 比 `a ** b % mod` 更省内存。""",
+        examples=[
+            dict(title="负数整除与取模", code="""for x in [-3, 3]:\n    print(x, "//2=", x // 2, "%2=", x % 2)\nprint("正数向上整除:", (10 + 3 - 1) // 3)"""),
+            dict(title="math 常用函数", code="""import math\nprint("gcd:", math.gcd(18, 24))\nprint("lcm:", math.lcm(6, 8))\nprint("isqrt:", math.isqrt(17))\nprint("comb:", math.comb(5, 2))"""),
+            dict(title="快速幂与无穷大", code="""best = float('inf')\nprint("初始最小值:", best)\nprint("2^10 mod 1000:", pow(2, 10, 1000))\nprint("大整数:", 10 ** 30 + 1)"""),
+            dict(title="浮点误差比较", code="""x = 0.1 + 0.2\ny = 0.3\nprint("直接相等:", x == y)\nprint("误差比较:", abs(x - y) < 1e-9)"""),
+        ],
+        algo="二分答案、数论、组合计数、取模 DP、距离计算会用到。负数除法在模拟表达式求值时尤其容易错。",
+        pitfalls=["`//` 对负数向下取整，不是截断到 0", "浮点数不要直接用 `==` 判等", "`a ** b % mod` 可能生成巨大中间值，优先 `pow(a, b, mod)`"],
+        complexity=[["math.gcd(a,b)", "O(log min(a,b))"], ["pow(a,b,mod)", "O(log b)"]],
+    ),
+    dict(
+        id="py-bit", group="语法糖与基础", title="位运算",
+        summary="用二进制技巧处理状态和集合。",
+        md="""### 语法要点
+位运算把整数当成二进制集合。`&` 按位与，`|` 按位或，`^` 异或，`~` 取反，`<<` 左移，`>>` 右移。`x & -x` 取最低位的 1，常用于树状数组或枚举集合元素。`x & (x - 1)` 删除最低位的 1。`int.bit_count()` 统计 1 的个数，`bin(x)` 查看二进制字符串。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 判断第 i 位 | `(mask >> i) & 1` |
+| 打开第 i 位 | `mask | (1 << i)` |
+| 关闭第 i 位 | `mask & ~(1 << i)` |
+| 翻转第 i 位 | `mask ^ (1 << i)` |
+| 最低位 1 | `mask & -mask` |
+| 子集枚举 | `sub = (sub - 1) & mask` |
+
+刷题时，状态压缩 DP、子集枚举、只出现一次的数、权限集合、棋盘状态都可以想到位运算。Python 的 `~x` 等于 `-x-1`，不是固定 32 位取反；需要 32 位效果时要再和掩码 `0xffffffff` 相与。""",
+        examples=[
+            dict(title="基础位操作", code="""mask = 0\nmask |= 1 << 2\nmask |= 1 << 4\nprint("mask:", bin(mask))\nprint("第2位:", (mask >> 2) & 1)\nprint("bit_count:", mask.bit_count())"""),
+            dict(title="最低位与删位", code="""x = 0b101100\nlow = x & -x\nremoved = x & (x - 1)\nprint("最低位:", bin(low))\nprint("删除最低位:", bin(removed))"""),
+            dict(title="枚举 mask 的所有非空子集", code="""mask = 0b1011\nsub = mask\nans = []\nwhile sub:\n    ans.append(bin(sub))\n    sub = (sub - 1) & mask\nprint("子集:", ans)"""),
+        ],
+        algo="状态压缩 DP、集合子集、异或消重、二进制枚举组合时使用。位集合通常比 set 更快也更省空间。",
+        pitfalls=["Python 的 `~x` 不是 32 位取反，需要手动加掩码", "移位优先级低于加减时要加括号", "子集枚举是 O(2^k)，k 大会爆炸"],
+        complexity=[["x.bit_count()", "近似 O(机器字数)，刷题可视作很快"], ["枚举 n 位所有 mask", "O(2^n)"]],
+    ),
+    dict(
+        id="py-list", group="内置数据结构", title="list 的操作与复杂度",
+        summary="list 适合数组和栈，不适合队头操作。",
+        md="""### 语法要点
+`list` 是动态数组。尾部 `append`、`pop()` 均摊 O(1)，按下标访问 O(1)。但头部 `pop(0)`、`insert(0, x)` 要搬动后面所有元素，是 O(n)。刷题里可以把 list 当栈：`append` 入栈，`pop` 出栈。队列要用 `deque`。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 入栈 | `st.append(x)` |
+| 出栈 | `st.pop()` |
+| 看栈顶 | `st[-1]` |
+| 初始化一维 | `[0] * n` |
+| 初始化二维 | `[[0] * n for _ in range(m)]` |
+| 浅拷贝 | `a.copy()` 或 `a[:]` |
+
+二维数组不要写 `[[0] * n] * m`，这会让每一行引用同一个列表，改一格会影响多行。普通切片和 `copy()` 都是浅拷贝，内层对象仍共享；真的要复制嵌套对象，用 `copy.deepcopy`。""",
+        examples=[
+            dict(title="list 当栈", code="""st = []\nfor x in [1, 2, 3]:\n    st.append(x)\nprint("栈顶:", st[-1])\nprint("出栈:", st.pop())\nprint("剩余:", st)"""),
+            dict(title="二维数组正确初始化", code="""m, n = 2, 3\ngrid = [[0] * n for _ in range(m)]\ngrid[0][1] = 7\nprint("正确:", grid)\nbad = [[0] * n] * m\nbad[0][1] = 7\nprint("错误共享:", bad)"""),
+            dict(title="浅拷贝现象", code="""a = [[1], [2]]\nb = a.copy()\nb[0].append(99)\nprint("原列表:", a)\nprint("浅拷贝:", b)"""),
+        ],
+        algo="单调栈、回溯路径、DP 表、数组模拟时使用。BFS 队列不要用 `pop(0)`。",
+        pitfalls=["`pop(0)` 和 `insert(0, x)` 是 O(n)", "`[[0]*n]*m` 会共享同一行", "切片和 `copy()` 只浅拷贝"],
+        complexity=[["append / pop()", "均摊 O(1)"], ["pop(0) / insert(0,x)", "O(n)"], ["a[i]", "O(1)"]],
+    ),
+    dict(
+        id="py-dict-set", group="内置数据结构", title="dict 与 set",
+        summary="哈希表提供快速查找、计数和去重。",
+        md="""### 语法要点
+`dict` 存键值对，`set` 存不重复元素。平均情况下，查找、插入、删除都是 O(1)。`d.get(k, default)` 适合取默认值，`setdefault` 适合“没有就创建容器”。遍历字典常用 `items()`。Python 3.7+ 字典保留插入顺序，但算法上不要把它误认为按大小排序。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 查默认值 | `d.get(x, 0)` |
+| 没有就放列表 | `d.setdefault(k, []).append(v)` |
+| 遍历键值 | `for k, v in d.items():` |
+| 按值排序 | `sorted(d.items(), key=lambda kv: kv[1])` |
+| 交集 | `a & b` |
+| 并集 | `a | b` |
+| 差集 | `a - b` |
+
+遍历 dict 或 set 时不能改变它的大小，否则会报错。需要删除时，先收集要删的键，或遍历 `list(d)` 的副本。哈希表是两数之和、去重、频率统计的基础工具。""",
+        examples=[
+            dict(title="get 计数", code="""cnt = {}\nfor x in [1, 2, 1, 3, 2, 1]:\n    cnt[x] = cnt.get(x, 0) + 1\nprint("计数:", cnt)\nprint("按次数排序:", sorted(cnt.items(), key=lambda kv: kv[1]))"""),
+            dict(title="set 运算", code="""a = {1, 2, 3}\nb = {3, 4}\nprint("交集:", a & b)\nprint("并集:", a | b)\nprint("差集:", a - b)\nprint("是否存在:", 2 in a)"""),
+            dict(title="setdefault 分组", code="""groups = {}\nfor word in ["eat", "tea", "bat"]:\n    key = "".join(sorted(word))\n    groups.setdefault(key, []).append(word)\nprint("分组:", groups)"""),
+        ],
+        algo="两数之和、去重、判重、建索引、图的访问集合、按键分组都用它。",
+        pitfalls=["遍历 dict/set 时不能增删元素", "字典保留插入顺序，不代表有序排序", "只有可哈希对象才能作为 key 或 set 元素"],
+        complexity=[["x in set / dict", "平均 O(1)"], ["set 交并差", "与参与元素数量相关"], ["按值排序", "O(n log n)"]],
+    ),
+    dict(
+        id="py-hashable", group="内置数据结构", title="tuple 与可哈希",
+        summary="不可变且可哈希的值才能做 key。",
+        md="""### 语法要点
+dict 的 key 和 set 的元素必须可哈希。常见可哈希对象有 `int`、`str`、`tuple`、`frozenset`。`list`、`dict`、`set` 可变，不能直接作为 key。`tuple` 只有在内部元素也都可哈希时才可哈希；例如 `(1, [2])` 仍然不行。
+
+**常见写法对照**
+
+| 场景 | 写法 |
+|---|---|
+| 坐标做 key | `(r, c)` |
+| 数组状态做 key | `tuple(nums)` |
+| 异位词分组 | `tuple(sorted(word))` |
+| 无序集合做 key | `frozenset(s)` |
+| 记忆化参数 | `dfs(tuple(state))` |
+
+刷题里 BFS/DFS 经常要记录访问过的状态，把列表状态转成 tuple 是最常见手法。分组题如果顺序不重要，可以排序后转 tuple 或字符串；如果是集合本身作为 key，用 `frozenset`。不要为了可哈希把可变对象塞进 tuple，内部仍不可哈希。""",
+        examples=[
+            dict(title="坐标作为 set 元素", code="""seen = set()\nseen.add((0, 1))\nseen.add((0, 1))\nseen.add((1, 0))\nprint("访问坐标:", seen)\nprint("已访问:", (0, 1) in seen)"""),
+            dict(title="列表状态转 tuple", code="""state = [1, 2, 3]\ndist = {tuple(state): 0}\nstate[0] = 9\nprint("原 key 还在:", (1, 2, 3) in dist)\nprint("当前状态 key:", tuple(state))"""),
+            dict(title="frozenset 做无序 key", code="""edges = {}\na = frozenset({1, 2})\nb = frozenset({2, 1})\nedges[a] = "connected"\nprint("同一个无序键:", edges[b])"""),
+        ],
+        algo="网格坐标、状态压缩前的状态记录、记忆化搜索、分组归类时常用。",
+        pitfalls=["`list` 不能放进 set，也不能当 dict key", "tuple 内部如果含 list 仍不可哈希", "排序后当 key 会花 O(k log k)，字母计数 key 可降到 O(k)"],
+        complexity=[["tuple(list)", "O(n)"], ["key in dict", "平均 O(1)"], ["tuple(sorted(word))", "O(k log k)"]],
+    ),
+    dict(
+        id="py-deque", group="内置数据结构", title="collections.deque",
+        summary="双端队列支持 O(1) 队头队尾操作。",
+        md="""### 语法要点
+`deque` 是双端队列，来自 `collections`。`append`、`appendleft`、`pop`、`popleft` 都是 O(1)。BFS 时用它替代 list 的 `pop(0)`。`maxlen` 可以创建固定长度队列，新元素进入时自动丢掉另一端元素，适合维护最近 k 个值。`rotate(k)` 可以旋转队列，正数向右，负数向左。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 建队列 | `q = deque([start])` |
+| 入队 | `q.append(x)` |
+| 出队 | `q.popleft()` |
+| 队头插入 | `q.appendleft(x)` |
+| 固定窗口 | `deque(maxlen=k)` |
+| 右旋一格 | `q.rotate(1)` |
+
+刷题中最典型是 BFS 层序遍历、最短路、滑动窗口保存候选。注意 deque 中间按下标访问不是强项，随机访问多时仍用 list。""",
+        examples=[
+            dict(title="BFS 队列模板", code="""from collections import deque\ngraph = {0: [1, 2], 1: [3], 2: [], 3: []}\nq = deque([0])\nseen = {0}\norder = []\nwhile q:\n    x = q.popleft()\n    order.append(x)\n    for y in graph[x]:\n        if y not in seen:\n            seen.add(y)\n            q.append(y)\nprint("BFS:", order)"""),
+            dict(title="maxlen 滑动窗口", code="""from collections import deque\nwin = deque(maxlen=3)\nfor x in [1, 2, 3, 4]:\n    win.append(x)\n    print("窗口:", list(win))"""),
+            dict(title="appendleft 与 rotate", code="""from collections import deque\nq = deque([2, 3])\nq.appendleft(1)\nq.rotate(1)\nprint("旋转后:", list(q))\nprint("弹出队头:", q.popleft())"""),
+        ],
+        algo="BFS、层序遍历、单调队列、固定长度窗口都用 deque。",
+        pitfalls=["BFS 不要用 list.pop(0)，会 O(n)", "`maxlen` 满了会自动丢元素，别以为插入失败", "deque 不适合大量中间随机访问"],
+        complexity=[["append / appendleft / pop / popleft", "O(1)"], ["rotate(k)", "O(min(|k|, n))"]],
+    ),
+    dict(
+        id="py-counter", group="内置数据结构", title="collections.Counter",
+        summary="快速计数并支持频次运算。",
+        md="""### 语法要点
+`Counter` 是专门计数的 dict 子类，来自 `collections`。可以直接对可迭代对象计数，访问不存在的键返回 0。`most_common(k)` 取出现次数最多的 k 个。Counter 支持加减，减法会丢掉非正计数；`subtract` 会保留负数。两个 Counter 相等可以判断字符频率是否一致，常用于异位词。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 计数字符 | `Counter(s)` |
+| 最高频 | `cnt.most_common(1)` |
+| 两频次相等 | `Counter(a) == Counter(b)` |
+| 加总计数 | `c1 + c2` |
+| 正计数展开 | `list(cnt.elements())` |
+
+滑动窗口题中可以维护 Counter，但如果字符集固定，数组计数通常更快。`elements()` 只返回正计数元素，且按计数重复输出。""",
+        examples=[
+            dict(title="计数与最高频", code="""from collections import Counter\ncnt = Counter("banana")\nprint("计数:", cnt)\nprint("最高频2个:", cnt.most_common(2))\nprint("不存在返回:", cnt['x'])"""),
+            dict(title="异位词判断", code="""from collections import Counter\na = "listen"\nb = "silent"\nprint("异位词:", Counter(a) == Counter(b))"""),
+            dict(title="Counter 加减与 elements", code="""from collections import Counter\na = Counter({"a": 2, "b": 1})\nb = Counter({"a": 1, "c": 3})\nprint("相加:", a + b)\nprint("相减:", a - b)\nprint("展开:", sorted((a + b).elements()))"""),
+        ],
+        algo="词频、字符频率、Top K、异位词、窗口匹配都常用。小字符集极限性能可换定长数组。",
+        pitfalls=["`cnt[x]` 不存在返回 0，但不会自动显示在 Counter 里", "`a - b` 会丢弃 0 和负数", "`most_common` 同频顺序按首次出现，不要依赖成数值排序"],
+        complexity=[["Counter(iterable)", "O(n)"], ["most_common(k)", "通常 O(n log k) 或 O(n log n)"], ["Counter(a)==Counter(b)", "O(键数)"]],
+    ),
+    dict(
+        id="py-defaultdict", group="内置数据结构", title="defaultdict 与 OrderedDict",
+        summary="自动创建默认值，或维护可移动顺序。",
+        md="""### 语法要点
+`defaultdict` 来自 `collections`，访问不存在的键时会自动创建默认值。`defaultdict(list)` 常用于分组和邻接表，`defaultdict(int)` 用于计数，`defaultdict(set)` 用于去重建图。它减少了 `if key not in d` 的模板代码。
+
+`OrderedDict` 也来自 `collections`，现在普通 dict 已保留插入顺序，但 `OrderedDict` 仍有 `move_to_end` 和 `popitem(last=False)`，适合手写 LRU 缓存：访问后移到末尾，容量超限时弹出最旧项。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 分组列表 | `defaultdict(list)` |
+| 计数 | `defaultdict(int)` |
+| 邻接表 | `g[u].append(v)` |
+| 访问后变最新 | `od.move_to_end(k)` |
+| 删除最旧 | `od.popitem(last=False)` |
+
+注意 `defaultdict` 的读取会创建键；如果只是检查是否存在，用 `in`，不要直接 `d[k]`。""",
+        examples=[
+            dict(title="defaultdict 建图", code="""from collections import defaultdict\nedges = [(0, 1), (0, 2), (1, 3)]\ng = defaultdict(list)\nfor u, v in edges:\n    g[u].append(v)\nprint("邻接表:", dict(g))\nprint("0的邻居:", g[0])"""),
+            dict(title="defaultdict 分组计数", code="""from collections import defaultdict\ncnt = defaultdict(int)\nfor c in "banana":\n    cnt[c] += 1\nprint("计数:", dict(cnt))"""),
+            dict(title="OrderedDict 模拟 LRU", code="""from collections import OrderedDict\ncap = 2\ncache = OrderedDict()\nfor k in [1, 2, 1, 3]:\n    if k in cache:\n        cache.move_to_end(k)\n    cache[k] = k * 10\n    if len(cache) > cap:\n        print("淘汰:", cache.popitem(last=False))\nprint("缓存:", list(cache.items()))"""),
+        ],
+        algo="建图、分组、计数、LRU 缓存题都常用。需要避免误建键时，用普通 dict 或先判断。",
+        pitfalls=["读取 `defaultdict` 缺失键会创建键", "默认工厂要传函数本身，如 `list`，不是 `list()`", "普通 dict 有顺序，但没有 `popitem(last=False)`"],
+        complexity=[["defaultdict 读写", "平均 O(1)"], ["move_to_end / popitem", "O(1)"]],
+    ),
+    dict(
+        id="py-heapq", group="内置数据结构", title="heapq 堆",
+        summary="用小顶堆维护动态最小值或 Top K。",
+        md="""### 语法要点
+`heapq` 提供小顶堆。堆顶 `heap[0]` 是最小值，`heappush` 插入，`heappop` 弹出最小值。要做大顶堆，常把数取负存入。堆中元素是元组时按字典序比较，所以 `(priority, value)` 会先按优先级，再按值平局。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 入堆 | `heappush(h, x)` |
+| 出堆 | `heappop(h)` |
+| 列表建堆 | `heapify(h)` |
+| 大顶堆 | `heappush(h, -x)` |
+| 先推再弹 | `heappushpop(h, x)` |
+| 先弹再推 | `heapreplace(h, x)` |
+| 最大 k 个 | `nlargest(k, nums)` |
+
+如果堆里放自定义对象，平局时 Python 可能不知道怎么比较对象。安全写法是 `(priority, idx, obj)`，用递增 idx 打破平局。`heapify` 是 O(n)，比逐个 push 的 O(n log n) 更适合已有数组。""",
+        examples=[
+            dict(title="小顶堆", code="""import heapq\nh = [5, 1, 3]\nheapq.heapify(h)\nheapq.heappush(h, 2)\nprint("弹出顺序:", [heapq.heappop(h) for _ in range(len(h))])"""),
+            dict(title="负数实现大顶堆", code="""import heapq\nh = []\nfor x in [5, 1, 3]:\n    heapq.heappush(h, -x)\nprint("最大值:", -heapq.heappop(h))\nprint("剩余:", [-x for x in h])"""),
+            dict(title="元组优先级与 TopK", code="""import heapq\ntasks = [(2, 0, "low"), (1, 1, "high"), (1, 2, "also high")]\nheapq.heapify(tasks)\nprint("先处理:", heapq.heappop(tasks))\nprint("最大的2个:", heapq.nlargest(2, [4, 1, 7, 3]))"""),
+            dict(title="heappushpop 维护前 k 大", code="""import heapq\nk = 3\nh = []\nfor x in [5, 1, 9, 3, 7]:\n    if len(h) < k:\n        heapq.heappush(h, x)\n    else:\n        heapq.heappushpop(h, x)\nprint("前3大:", sorted(h, reverse=True))"""),
+        ],
+        algo="Top K、合并 k 个有序链表、Dijkstra、任务调度、动态中位数会用堆。",
+        pitfalls=["`heapq` 默认小顶堆，大顶堆要取负或包装", "元组平局会继续比较下一项，自定义对象可能报错", "`heapreplace` 一定会弹出原堆顶，哪怕新元素更小"],
+        complexity=[["heappush / heappop", "O(log n)"], ["heapify", "O(n)"], ["nlargest(k,n)", "约 O(n log k)"]],
+    ),
+    dict(
+        id="py-bisect", group="内置数据结构", title="bisect 二分",
+        summary="在有序序列里找插入点和边界。",
+        md="""### 语法要点
+`bisect` 模块用于有序列表。`bisect_left(a, x)` 返回第一个 `>= x` 的位置，`bisect_right(a, x)` 返回第一个 `> x` 的位置。两者之差可以得到 x 的出现次数。`insort` 会把元素插入到有序位置，但插入本身要移动元素，所以是 O(n)。Python 3.10+ 支持 `key` 参数，可对元素按投影值二分。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 第一个 `>= x` | `bisect_left(a, x)` |
+| 第一个 `> x` | `bisect_right(a, x)` |
+| x 个数 | `right - left` |
+| 有序插入 | `insort(a, x)` |
+| 判断是否存在 | `i < n and a[i] == x` |
+
+二分只对已排序序列正确。很多题要找“小于等于 x 的个数”，可以用 `bisect_right(a, x)`。如果需要频繁插入删除，list 加 bisect 可能不够快，因为插入删除是 O(n)。""",
+        examples=[
+            dict(title="左右边界", code="""from bisect import bisect_left, bisect_right\na = [1, 2, 2, 2, 4]\nl = bisect_left(a, 2)\nr = bisect_right(a, 2)\nprint("左边界:", l)\nprint("右边界:", r)\nprint("出现次数:", r - l)"""),
+            dict(title="找第一个大于等于 x", code="""from bisect import bisect_left\na = [1, 3, 5, 7]\nx = 4\ni = bisect_left(a, x)\nprint("位置:", i)\nprint("值:", a[i] if i < len(a) else None)"""),
+            dict(title="insort 有序插入", code="""from bisect import insort\na = [1, 3, 5]\nfor x in [4, 2]:\n    insort(a, x)\nprint("插入后:", a)"""),
+            dict(title="key 参数二分", code="""from bisect import bisect_left\nitems = [(1, "a"), (3, "b"), (5, "c")]\ni = bisect_left(items, 4, key=lambda p: p[0])\nprint("插入位置:", i)"""),
+        ],
+        algo="有序数组查边界、求排名、计数小于等于、最长递增子序列维护 tails 时常用。",
+        pitfalls=["数组必须已排序", "`bisect_right` 是第一个 `> x`，不是最后一个等于 x", "`insort` 查找 O(log n)，插入移动 O(n)"],
+        complexity=[["bisect_left/right", "O(log n)"], ["insort", "O(n)"], ["统计出现次数", "O(log n)"]],
+    ),
+    dict(
+        id="py-sort", group="排序与函数工具", title="排序",
+        summary="用 key、稳定性和自定义比较表达规则。",
+        md="""### 语法要点
+`sorted(iterable)` 返回新列表，`list.sort()` 原地排序并返回 `None`。排序默认升序，`reverse=True` 降序。`key` 函数给每个元素计算排序键，常写 `lambda x: (...)` 做多关键字排序。Python 排序稳定：key 相同时保留原相对顺序，这对“先按次要关键字排，再按主要关键字排”很有用。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 新列表排序 | `b = sorted(a)` |
+| 原地排序 | `a.sort()` |
+| 降序 | `sorted(a, reverse=True)` |
+| 按长度 | `sorted(words, key=len)` |
+| 多关键字 | `key=lambda x: (x[0], -x[1])` |
+| 自定义比较 | `key=cmp_to_key(cmp)` |
+
+当排序规则不能用 key 直接表达时，用 `functools.cmp_to_key`。经典例子是“最大数”：比较 `a+b` 和 `b+a`。能用 key 就别用 cmp，因为 cmp 调用更多、也更容易写错。""",
+        examples=[
+            dict(title="sorted 与 sort", code="""a = [3, 1, 2]\nb = sorted(a)\nprint("原列表:", a)\nprint("新列表:", b)\na.sort(reverse=True)\nprint("原地降序:", a)"""),
+            dict(title="多关键字排序", code="""pairs = [(1, 2), (1, 5), (0, 9)]\nans = sorted(pairs, key=lambda x: (x[0], -x[1]))\nprint("排序结果:", ans)"""),
+            dict(title="最大数自定义比较", code="""from functools import cmp_to_key\nnums = [3, 30, 34, 5, 9]\ndef cmp(a, b):\n    return -1 if a + b > b + a else (1 if a + b < b + a else 0)\nparts = sorted(map(str, nums), key=cmp_to_key(cmp))\nprint("最大数:", "".join(parts))"""),
+        ],
+        algo="区间排序、贪心排序、Top 之前的预处理、按规则拼接字符串时使用。",
+        pitfalls=["`list.sort()` 返回 `None`，不要写 `a = a.sort()`", "多关键字降序可对数字取负，字符串降序要换方法", "自定义 cmp 必须满足传递性，否则结果不可靠"],
+        complexity=[["sorted / sort", "O(n log n) 时间，通常 O(n) 额外空间"], ["key 计算", "每个元素一次"]],
+    ),
+    dict(
+        id="py-functools", group="排序与函数工具", title="functools",
+        summary="用缓存、归约和偏函数减少模板代码。",
+        md="""### 语法要点
+`functools.cache` 和 `lru_cache` 是记忆化搜索利器。递归函数加上缓存后，相同参数只计算一次，常用于 DP、树形递归、博弈搜索。被缓存函数的参数必须可哈希；列表要转 tuple。`cache_clear()` 可以清空缓存，避免多组测试互相影响。`lru_cache(maxsize=None)` 与 `cache` 类似，`maxsize` 可限制缓存大小。
+
+`reduce` 把序列从左到右合并成一个值，适合累乘、合并 gcd，但很多时候普通循环更清楚。`partial` 可以固定函数的一部分参数，刷题里较少用，但写 key 或回调时偶尔方便。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 记忆化 | `@cache` |
+| 限制缓存 | `@lru_cache(maxsize=1000)` |
+| 清缓存 | `dfs.cache_clear()` |
+| 累积合并 | `reduce(func, nums)` |
+| 固定参数 | `partial(func, a=1)` |
+
+递归层数深时，缓存不能解决栈深问题，还要考虑 `sys.setrecursionlimit` 或改迭代。""",
+        examples=[
+            dict(title="cache 记忆化斐波那契", code="""from functools import cache\n@cache\ndef fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)\nprint("fib(10):", fib(10))\nprint("缓存信息:", fib.cache_info())"""),
+            dict(title="参数转 tuple 才能缓存", code="""from functools import cache\n@cache\ndef total(state):\n    return sum(state)\nnums = [1, 2, 3]\nprint("总和:", total(tuple(nums)))"""),
+            dict(title="reduce 与 partial", code="""from functools import reduce, partial\nfrom math import gcd\nnums = [12, 18, 30]\nprint("整体 gcd:", reduce(gcd, nums))\npower2 = partial(pow, exp=2)\nprint("平方:", power2(5))"""),
+        ],
+        algo="记忆化 DFS、区间 DP、状态搜索、重复子问题明显时优先想到 `@cache`。",
+        pitfalls=["缓存参数必须可哈希", "多组测试复用同一函数时可能要 `cache_clear()`", "递归太深仍会 RecursionError"],
+        complexity=[["@cache 查询", "平均 O(1)"], ["记忆化 DFS", "约等于状态数 × 转移代价"]],
+    ),
+    dict(
+        id="py-itertools", group="排序与函数工具", title="itertools",
+        summary="用迭代器生成组合、前缀和和分组。",
+        md="""### 语法要点
+`itertools` 提供高效迭代器。`accumulate` 做前缀和，Python 3.8+ 支持 `initial`，可以得到以 0 开头的前缀数组。`permutations`、`combinations`、`product` 分别生成排列、组合、笛卡尔积，适合小规模暴力。`groupby` 只合并连续相同 key 的元素，想按值整体分组要先排序。`pairwise` 生成相邻二元组，`chain` 拼接多个可迭代对象。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 前缀和 | `list(accumulate(nums, initial=0))` |
+| 长度 r 排列 | `permutations(nums, r)` |
+| 长度 r 组合 | `combinations(nums, r)` |
+| 多维枚举 | `product(a, b)` |
+| 连续分组 | `groupby(nums)` |
+| 相邻配对 | `pairwise(nums)` |
+
+这些函数返回迭代器，不会一次性展开全部结果，除非你转 list。排列组合数量增长很快，n 稍大就不能暴力。""",
+        examples=[
+            dict(title="accumulate 前缀和", code="""from itertools import accumulate\nnums = [2, 1, 3]\npre = list(accumulate(nums, initial=0))\nprint("前缀和:", pre)\nprint("区间[1,3):", pre[3] - pre[1])"""),
+            dict(title="排列组合与乘积", code="""from itertools import permutations, combinations, product\nprint("排列:", list(permutations([1, 2, 3], 2))[:3])\nprint("组合:", list(combinations([1, 2, 3], 2)))\nprint("乘积:", list(product([0, 1], repeat=2)))"""),
+            dict(title="groupby 和 pairwise", code="""from itertools import groupby, pairwise\nnums = [1, 1, 2, 1, 1]\nruns = [(k, len(list(g))) for k, g in groupby(nums)]\nprint("连续分组:", runs)\nprint("相邻对:", list(pairwise(nums)))"""),
+            dict(title="chain 拼接", code="""from itertools import chain\na = [1, 2]\nb = [3]\nprint("拼接:", list(chain(a, b, [4, 5])))"""),
+        ],
+        algo="前缀和、相邻差分、小规模全排列/组合枚举、连续段压缩时使用。",
+        pitfalls=["`groupby` 只管连续相同，不会自动全局归类", "排列组合会指数级增长", "迭代器被消费后不能重新遍历"],
+        complexity=[["accumulate", "O(n)"], ["permutations(n,r)", "O(n!/(n-r)!) 个结果"], ["combinations(n,r)", "O(C(n,r)) 个结果"]],
+    ),
+    dict(
+        id="py-lambda", group="排序与函数工具", title="lambda、map、filter 与 key 函数",
+        summary="短函数适合 key，数据变换常用推导式。",
+        md="""### 语法要点
+`lambda` 创建匿名函数，常用于 `key` 参数：`key=lambda x: x[1]`。`map(func, iterable)` 对每个元素应用函数，`filter(func, iterable)` 保留函数返回真值的元素。它们返回迭代器，想查看要转 list。刷题中，简单转换如输入整数常写 `map(int, input().split())`；复杂过滤和映射通常用推导式更直观。
+
+**常见写法对照**
+
+| 想做什么 | 写法 |
+|---|---|
+| 按第二项排序 | `key=lambda x: x[1]` |
+| 多关键字 | `key=lambda x: (x[0], -x[1])` |
+| 字符串转整数 | `map(int, arr)` |
+| 过滤正数 | `[x for x in nums if x > 0]` |
+| 取元组字段 | `operator.itemgetter(1)` |
+
+`operator.itemgetter` 和 `attrgetter` 比 lambda 更简洁，适合取固定字段。不要为了函数式写法牺牲可读性；面试和比赛里，推导式往往更容易看。""",
+        examples=[
+            dict(title="lambda 做 key", code="""pairs = [("a", 3), ("b", 1), ("c", 2)]\nans = sorted(pairs, key=lambda x: x[1])\nprint("按第二项:", ans)"""),
+            dict(title="map 与 filter", code="""nums = list(map(int, ["1", "2", "3", "4"]))\nevens = list(filter(lambda x: x % 2 == 0, nums))\nprint("整数:", nums)\nprint("偶数:", evens)"""),
+            dict(title="itemgetter", code="""from operator import itemgetter\nrows = [("tom", 90), ("ann", 95), ("bob", 90)]\nprint("按分数:", sorted(rows, key=itemgetter(1)))\nprint("按分数再姓名:", sorted(rows, key=itemgetter(1, 0)))"""),
+        ],
+        algo="排序 key、输入转换、字段抽取、简单数据流变换时使用。复杂逻辑优先普通函数或推导式。",
+        pitfalls=["`map` 和 `filter` 返回迭代器，只能消费一次", "lambda 只能写表达式，不能写语句", "过滤时 `filter(None, nums)` 会删掉 0、空串等假值"],
+        complexity=[["map/filter 遍历", "O(n)"], ["sorted(..., key=...)", "O(n log n)"]],
+    ),
+    dict(
+        id="py-recursion", group="函数、递归与类", title="递归与作用域",
+        summary="写 DFS 时处理好栈深、闭包和变量修改。",
+        md="""### 语法要点
+刷题里的递归常写成内部函数 `dfs`，这样可以直接读取外部的图、数组和答案。若要在内部函数里给外层不可变变量重新赋值，需要 `nonlocal`；只修改列表、dict 的内容通常不用。递归深度超过默认限制会报 `RecursionError`，链状树、深 DFS 可用 `sys.setrecursionlimit` 提高限制，或改迭代。
+
+**常见写法对照**
+
+| 场景 | 写法 |
+|---|---|
+| 内部 DFS | `def dfs(u): ...` |
+| 修改外层计数 | `nonlocal ans` |
+| 提高栈深 | `sys.setrecursionlimit(10**6)` |
+| 闭包读外部数组 | 直接读 `nums` |
+| 可变默认参数 | 不写 `path=[]` |
+
+可变默认参数是大坑：默认值只在函数定义时创建一次，多次调用会共享。需要默认列表时写 `None`，函数里再新建。全局变量在函数内赋值要 `global`，但 LeetCode 里更推荐内部函数加 `nonlocal`。""",
+        examples=[
+            dict(title="内部 dfs 与 nonlocal", code="""tree = {1: [2, 3], 2: [], 3: []}\nans = 0\ndef dfs(u, depth):\n    global ans\n    ans = max(ans, depth)\n    for v in tree[u]:\n        dfs(v, depth + 1)\ndfs(1, 1)\nprint("最大深度:", ans)"""),
+            dict(title="闭包版本更适合 LeetCode", code="""def max_depth(tree):\n    ans = 0\n    def dfs(u, depth):\n        nonlocal ans\n        ans = max(ans, depth)\n        for v in tree[u]:\n            dfs(v, depth + 1)\n    dfs(1, 1)\n    return ans\nprint("深度:", max_depth({1: [2], 2: [3], 3: []}))"""),
+            dict(title="可变默认参数陷阱", code="""def bad(x, arr=[]):\n    arr.append(x)\n    return arr\nprint("第一次:", bad(1))\nprint("第二次共享:", bad(2))\ndef good(x, arr=None):\n    arr = [] if arr is None else arr\n    arr.append(x)\n    return arr\nprint("安全:", good(3))"""),
+            dict(title="设置递归深度", code="""import sys\nsys.setrecursionlimit(10000)\ndef fact(n):\n    if n <= 1:\n        return 1\n    return n * fact(n - 1)\nprint("fact5:", fact(5))"""),
+        ],
+        algo="树/图 DFS、回溯、记忆化搜索、分治时使用。深链数据要提前考虑递归限制。",
+        pitfalls=["内部函数赋值外层整数要 `nonlocal`", "可变默认参数会跨调用共享", "提高递归限制不等于无限安全，太深仍可能崩"],
+        complexity=[["DFS 遍历树/图", "O(V+E)"], ["递归栈", "O(深度)"]],
+    ),
+    dict(
+        id="py-class", group="函数、递归与类", title="LeetCode 的类模板",
+        summary="理解 Solution、类型标注和自定义对象比较。",
+        md="""### 语法要点
+LeetCode 通常要求写 `class Solution:`，方法第一个参数是 `self`。`self` 用来访问对象属性；多数题不需要保存状态，直接写局部变量即可。类型标注常见 `List[int]`、`Optional[TreeNode]`，本地运行要 `from typing import List, Optional`；在新版 Python 中也可以写内置泛型 `list[int]`。
+
+链表和树题会给 `ListNode`、`TreeNode` 定义。自己本地调试时可以写最小类。自定义对象放进堆时，如果两个优先级相同，Python 会比较对象本身；可以定义 `__lt__`，或更推荐放 `(priority, idx, obj)` 元组。`dataclass` 能快速生成初始化方法，适合本地构造数据。
+
+**常见写法对照**
+
+| 场景 | 写法 |
+|---|---|
+| LeetCode 方法 | `def twoSum(self, nums, target):` |
+| 类型标注 | `nums: List[int] -> int` |
+| 可空节点 | `Optional[TreeNode]` |
+| 对象入堆 | `(priority, idx, node)` |
+| 数据类 | `@dataclass` |
+
+类型标注主要帮助阅读，不会自动检查逻辑。面试中先写清核心算法，不要被类模板卡住。""",
+        examples=[
+            dict(title="Solution 模板", code="""class Solution:\n    def twoSum(self, nums, target):\n        pos = {}\n        for i, x in enumerate(nums):\n            if target - x in pos:\n                return [pos[target - x], i]\n            pos[x] = i\nprint("答案:", Solution().twoSum([2, 7, 11], 9))"""),
+            dict(title="ListNode 构造", code="""class ListNode:\n    def __init__(self, val=0, next=None):\n        self.val = val\n        self.next = next\nhead = ListNode(1, ListNode(2, ListNode(3)))\nvals = []\nwhile head:\n    vals.append(head.val)\n    head = head.next\nprint("链表:", vals)"""),
+            dict(title="自定义类放进堆", code="""import heapq\nclass Node:\n    def __init__(self, val):\n        self.val = val\nh = []\nfor i, v in enumerate([5, 1, 1]):\n    heapq.heappush(h, (v, i, Node(v)))\nprint("堆顶值:", heapq.heappop(h)[2].val)"""),
+            dict(title="dataclass", code="""from dataclasses import dataclass\n@dataclass\nclass Point:\n    r: int\n    c: int\np = Point(2, 3)\nprint("点:", p)"""),
+        ],
+        algo="所有 LeetCode 类题都会遇到。链表、二叉树、堆中节点对象、本地调试构造器尤其常用。",
+        pitfalls=["类方法漏写 `self` 会报参数错误", "本地使用 `List` / `Optional` 要导入 typing", "对象直接入堆遇到平局可能无法比较"],
+        complexity=[["方法调用", "O(1) 额外开销"], ["对象属性访问", "O(1)"]],
+    ),
+    dict(
+        id="py-io", group="输入输出", title="ACM 模式输入输出",
+        summary="掌握快读、批量读入和批量输出。",
+        md="""### 语法要点
+ACM 模式需要自己读标准输入。单行数字常写 `a, b = map(int, input().split())`。大量输入时用 `sys.stdin.readline()`，比 `input()` 少一层处理。未知行数时可以遍历 `sys.stdin`。如果输入只是数字流，最快的常用写法是 `data = list(map(int, sys.stdin.read().split()))`，再用下标解析。
+
+**常见写法对照**
+
+| 输入形态 | 写法 |
+|---|---|
+| 一行两个整数 | `a, b = map(int, input().split())` |
+| 读 n 行 | `for _ in range(n): ...` |
+| 快读一行 | `sys.stdin.readline()` |
+| 读到 EOF | `for line in sys.stdin:` |
+| 一次性读 | `sys.stdin.read().split()` |
+| 多行输出 | `'\n'.join(ans)` |
+
+输出时尽量先收集字符串，最后 `print('\n'.join(ans))`，避免大量 `print` 带来的开销。示例里用 `stdin` 提供输入，网页会自动运行。""",
+        examples=[
+            dict(title="读取一行整数", stdin="3 5\n", code="""a, b = map(int, input().split())\nprint("和:", a + b)\nprint("积:", a * b)"""),
+            dict(title="sys.stdin.readline 读多行", stdin="3\n1 2\n3 4\n5 6\n", code="""import sys\nn = int(sys.stdin.readline())\nans = []\nfor _ in range(n):\n    a, b = map(int, sys.stdin.readline().split())\n    ans.append(str(a + b))\nprint("结果:\\n" + "\\n".join(ans))"""),
+            dict(title="读到 EOF", stdin="1 2\n3 4\n", code="""import sys\nans = []\nfor line in sys.stdin:\n    a, b = map(int, line.split())\n    ans.append(f"{a}+{b}={a+b}")\nprint("\\n".join(ans))"""),
+            dict(title="一次性读入数字流", stdin="5\n1 2 3 4 5\n", code="""import sys\ndata = list(map(int, sys.stdin.read().split()))\nn = data[0]\nnums = data[1:1+n]\nprint("数量:", n)\nprint("总和:", sum(nums))"""),
+        ],
+        algo="笔试平台、ACM 模式、多组数据、大输入量题目必备。LeetCode 函数模式通常不用写 IO。",
+        pitfalls=["`readline()` 读到的行带换行，`split()` 会自动处理", "一次性读入要按题目格式正确移动下标", "大量输出不要循环里频繁 print"],
+        complexity=[["读取全部输入", "O(输入大小)"], ["join 输出", "O(输出总长度)"]],
+    ),
+    dict(
+        id="py-pitfalls", group="易错点与速查", title="常见坑",
+        summary="集中记住最容易让代码 WA 或 TLE 的点。",
+        md="""### 语法要点
+Python 刷题最常见的坑不是语法不会，而是语义和复杂度误判。`is` 判断是否同一个对象，`==` 判断值是否相等；比较数字、字符串、列表内容时用 `==`。浮点数有误差，判断相等要用容差。可变对象赋值只是绑定同一个对象，二维数组错误初始化会造成多行联动。
+
+**常见坑对照**
+
+| 坑 | 正确做法 |
+|---|---|
+| `a is b` 比值 | 用 `a == b` |
+| 浮点直接相等 | `abs(a-b) < 1e-9` |
+| 遍历时删列表 | 建新列表或倒序删 |
+| 循环字符串 `+=` | 列表收集后 `join` |
+| 函数内改全局变量 | 声明 `global`，或改用返回值 |
+| `round(2.5)` 以为是 3 | Python 是银行家舍入 |
+| `/` 得到浮点 | 整除用 `//` |
+
+遍历列表时修改长度容易跳过元素，因为下标在移动。需要删除多个元素时，常用推导式重建列表。全局变量在函数内只读取可以不声明，一旦赋值就会被视作局部变量。""",
+        examples=[
+            dict(title="is 与 ==", code="""a = [1, 2]\nb = [1, 2]\nc = a\nprint("a == b:", a == b)\nprint("a is b:", a is b)\nprint("a is c:", a is c)"""),
+            dict(title="遍历时修改列表", code="""nums = [1, 2, 3, 4, 5]\nkept = [x for x in nums if x % 2 == 1]\nprint("保留奇数:", kept)\nnums2 = [1, 2, 3, 4]\nfor i in range(len(nums2) - 1, -1, -1):\n    if nums2[i] % 2 == 0:\n        nums2.pop(i)\nprint("倒序删除:", nums2)"""),
+            dict(title="round 与除法", code="""print("round(2.5):", round(2.5))\nprint("round(3.5):", round(3.5))\nprint("普通除法:", 5 / 2)\nprint("整数除法:", 5 // 2)"""),
+            dict(title="可变对象别名", code="""a = [1, 2]\nb = a\nb.append(3)\nprint("a也变了:", a)\nprint("复制后独立:", a.copy())"""),
+        ],
+        algo="调试 WA、RE、TLE 时优先检查这些点，尤其是对象别名、除法、遍历删除和字符串拼接。",
+        pitfalls=["`is` 不用于普通值相等判断", "`round` 是银行家舍入，.5 不一定进位", "函数内赋值全局变量前不声明会触发作用域问题"],
+        complexity=[["字符串循环 +=", "可能 O(n^2)"], ["列表推导重建", "O(n)"], ["倒序 pop 删除", "最坏 O(n^2)"]],
+    ),
+    dict(
+        id="py-complexity", group="易错点与速查", title="常用操作复杂度速查",
+        summary="用复杂度判断该用哪种容器。",
+        md="""### 语法要点
+刷题超时常来自“看起来一行，实际 O(n)”的操作。`x in list` 要线性扫描，放在循环里就是 O(n^2)；如果只做存在性判断，先转成 set。list 尾部操作快，头部操作慢。dict/set 查找平均 O(1)。deque 的两端操作 O(1)。heapq 维护堆顶 O(log n)。字符串不可变，拼接要小心。
+
+**复杂度速查**
+
+| 类型 | 常用操作 | 复杂度 |
+|---|---|---|
+| list | `a[i]`、尾部 `append/pop` | O(1) / 均摊 O(1) |
+| list | `x in a`、`pop(0)`、中间插入 | O(n) |
+| dict/set | 查找、插入、删除 | 平均 O(1) |
+| deque | 两端 append/pop | O(1) |
+| heapq | push/pop | O(log n) |
+| str | 切片、拼接结果 | O(k) |
+| sort | 排序 | O(n log n) |
+
+选择容器时先看操作：需要队头出队，用 deque；需要最小值动态变化，用 heap；需要判重，用 set；需要保持有序并二分，普通 list 插入仍是 O(n)，不要只看二分 O(log n)。""",
+        examples=[
+            dict(title="list in 与 set in", code="""nums = list(range(5))\ns = set(nums)\nprint("list 查找:", 4 in nums)\nprint("set 查找:", 4 in s)\nprint("不存在:", 9 in s)"""),
+            dict(title="队列选择", code="""from collections import deque\nq = deque([1, 2, 3])\nq.append(4)\nprint("队头:", q.popleft())\nprint("剩余:", list(q))"""),
+            dict(title="堆操作复杂度", code="""import heapq\nh = []\nfor x in [4, 1, 3]:\n    heapq.heappush(h, x)\nprint("最小:", heapq.heappop(h))\nprint("堆:", h)"""),
+        ],
+        algo="做复杂度分析、替换超时容器、判断嵌套循环是否可接受时使用。",
+        pitfalls=["`x in list` 在循环里常导致 O(n^2)", "`bisect` 查找快但 list 插入慢", "切片和字符串拼接都会创建新对象"],
+        complexity=[["list membership", "O(n)"], ["set/dict membership", "平均 O(1)"], ["heap push/pop", "O(log n)"]],
+    ),
+    dict(
+        id="py-cheatsheet", group="易错点与速查", title="刷题速查卡",
+        summary="把常用写法按目标快速定位。",
+        md="""### 一页纸速查
+
+| 想做 X | 写 Y |
+|---|---|
+| 默认值计数 | `cnt[x] = cnt.get(x, 0) + 1` |
+| 更快计数 | `Counter(nums)` |
+| 默认列表分组 | `defaultdict(list)` |
+| 判重 | `seen = set()` |
+| 坐标入集合 | `seen.add((r, c))` |
+| 队列 BFS | `q = deque([start]); q.popleft()` |
+| 栈 | `st.append(x); st.pop()` |
+| 小顶堆 | `heappush(h, x)` |
+| 大顶堆 | `heappush(h, -x)` |
+| 前 k 大 | 维护大小为 k 的小顶堆 |
+| 二分左边界 | `bisect_left(a, x)` |
+| 二分右边界 | `bisect_right(a, x)` |
+| 排序多关键字 | `key=lambda x: (x[0], -x[1])` |
+| 反转列表 | `a[::-1]` |
+| 安全二维数组 | `[[0]*n for _ in range(m)]` |
+| 前缀和 | `list(accumulate(nums, initial=0))` |
+| 区间和 | `pre[r] - pre[l]` |
+| 记忆化 DFS | `@cache` |
+| 状态可哈希 | `tuple(state)` |
+| 字母下标 | `ord(c) - ord('a')` |
+| 拼字符串 | `''.join(parts)` |
+| 存在满足 | `any(cond for x in nums)` |
+| 全部满足 | `all(cond for x in nums)` |
+| 商和余数 | `divmod(x, k)` |
+| 快速幂取模 | `pow(a, b, mod)` |
+| 最低位 1 | `x & -x` |
+| 删除最低位 1 | `x & (x-1)` |
+| bit 个数 | `x.bit_count()` |
+| 快读 | `sys.stdin.readline()` |
+| 批量输出 | `print('\n'.join(ans))` |
+
+用这张表时先定位“操作需求”，再选容器或语法。写完后立刻检查复杂度：是否有循环里的切片、`in list`、`pop(0)`、字符串 `+=`。""",
+        examples=[
+            dict(title="两数之和模板", code="""nums = [2, 7, 11, 15]\ntarget = 9\npos = {}\nfor i, x in enumerate(nums):\n    if target - x in pos:\n        print("答案:", [pos[target - x], i])\n        break\n    pos[x] = i"""),
+            dict(title="BFS 最短步数模板", code="""from collections import deque\ngrid = [[0, 0], [1, 0]]\nq = deque([(0, 0, 0)])\nseen = {(0, 0)}\nwhile q:\n    r, c, d = q.popleft()\n    if (r, c) == (1, 1):\n        print("距离:", d)\n        break\n    for dr, dc in [(1, 0), (0, 1)]:\n        nr, nc = r + dr, c + dc\n        if 0 <= nr < 2 and 0 <= nc < 2 and grid[nr][nc] == 0 and (nr, nc) not in seen:\n            seen.add((nr, nc)); q.append((nr, nc, d + 1))"""),
+            dict(title="记忆化搜索模板", code="""from functools import cache\n@cache\ndef ways(n):\n    if n <= 1:\n        return 1\n    return ways(n - 1) + ways(n - 2)\nprint("爬楼梯:", ways(5))"""),
+            dict(title="前缀和模板", code="""from itertools import accumulate\nnums = [1, 2, 3, 4]\npre = list(accumulate(nums, initial=0))\nl, r = 1, 3\nprint("区间和:", pre[r] - pre[l])"""),
+        ],
+        algo="临场忘写法时先查这一节。它覆盖哈希、队列、堆、二分、前缀和、记忆化和字符串构造等高频模板。",
+        pitfalls=["速查卡只给写法，仍要按题目约束判断复杂度", "模板里的边界如开闭区间要和题意对齐", "复制模板后要检查变量名和初始化位置"],
+        complexity=[["哈希模板", "平均 O(n)"], ["BFS 模板", "O(V+E)"], ["前缀和查询", "预处理 O(n)，查询 O(1)"]],
+    ),
+]

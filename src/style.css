@@ -506,24 +506,52 @@ select.btn { padding-right: 8px; }
 .steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; }
 .steps li > b:first-child { color: var(--red); font-family: var(--serif); }
 
-/* ---------- 知识库 ---------- */
-.kb-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-.kb-left { max-height: calc(100vh - var(--top) - 40px); position: sticky; top: calc(var(--top) + 12px); grid-template-rows: auto auto minmax(0, 1fr) auto auto; overflow: hidden; }
-.kb-outline { max-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 1px; }
-.kb-outline .kb-ol { flex: none; }
-.kb-ol { text-align: left; border: 0; background: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kb-ol:hover { background: var(--surface-2); color: var(--ink); }
-.kb-ol.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.kb-read-wrap { position: relative; overflow: auto; min-height: 200px; display: grid; gap: 8px; align-content: start; padding-right: 4px; }
-.kb-reader { font-size: 15px; }
-.kb-reader ::selection { background: var(--hl); }
+/* ---------- 学习中心（AI 知识 / Python 语法） ---------- */
+.course-grid { display: grid; grid-template-columns: 232px minmax(0, 1fr) minmax(340px, 420px); gap: 18px; align-items: start; }
+.course-side { position: sticky; top: calc(var(--top) + 12px); max-height: calc(100vh - var(--top) - 32px); overflow: auto; display: flex; flex-direction: column; gap: 2px; padding-right: 4px; }
+.course-search { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); margin-bottom: 8px; flex: none; }
+.course-results { border: 1px solid var(--line); border-radius: 7px; background: var(--surface); padding: 4px; margin-bottom: 8px; display: flex; flex-direction: column; flex: none; }
+.cn-group { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 8px 4px; font-family: var(--serif); font-size: 14px; flex: none; }
+.cn-item { flex: none; text-align: left; border: 0; background: none; padding: 5px 8px 5px 18px; border-radius: 5px; cursor: pointer; font-size: 13.5px; color: var(--ink-2); position: relative; line-height: 1.45; }
+.cn-item:hover { background: var(--surface-2); color: var(--ink); }
+.cn-item.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.cn-item.read::before { content: ""; position: absolute; left: 6px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--green); }
+.course-results .cn-item { padding-left: 8px; }
+.course-nav { display: flex; flex-direction: column; gap: 1px; }
+.course-top { display: none; }
+.course-select { width: 100%; }
+.course-main { display: grid; gap: 16px; min-width: 0; }
+.course-body { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 26px 28px; display: grid; gap: 18px; min-width: 0; }
+.course-title { font-size: 28px; }
+.course-md { font-size: 15.5px; line-height: 1.85; max-width: 72ch; }
+.course-md h3 { font-size: 18px; margin-top: 1.4em; }
+.course-actions { gap: 6px; }
+.course-pager { border-top: 1px dashed var(--line); padding-top: 14px; }
+.course-chat { position: sticky; top: calc(var(--top) + 12px); max-height: calc(100vh - var(--top) - 32px); min-height: 520px; }
+.course-chat .msgs { max-height: none; }
+.qa { border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; background: var(--paper); }
+.qa summary { cursor: pointer; font-weight: 600; font-size: 14.5px; }
+.qa .md { margin-top: 8px; }
 .kb-ask { position: absolute; z-index: 4; box-shadow: var(--shadow); }
-.kb-chat { max-height: calc(100vh - var(--top) - 40px); min-height: 560px; position: sticky; top: calc(var(--top) + 12px); }
-.kb-chat .msgs { max-height: none; }
-@media (max-width: 960px) {
-  .kb-grid { grid-template-columns: minmax(0, 1fr); }
-  .kb-left, .kb-chat { position: static; max-height: none; }
-  .kb-left { overflow: visible; }
-  .kb-read-wrap { max-height: 60vh; }
-  .kb-chat { min-height: 480px; max-height: 80vh; }
+.notes-panel summary { cursor: pointer; }
+.hub { text-decoration: none !important; color: var(--ink); transition: border-color .15s, transform .15s; }
+.hub:hover { border-color: var(--accent); transform: translateY(-1px); }
+.py-ex { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--paper); }
+.py-ex-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface-2); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.py-ex-h b { font-size: 13.5px; }
+.py-ex-ed .CodeMirror { height: auto; font-size: 13.5px; background: var(--paper); padding: 4px 0; }
+.py-ex-ed .CodeMirror-scroll { min-height: 0; }
+.py-ex-label { padding: 4px 12px 0; border-top: 1px dashed var(--line); }
+.py-ex-out { margin: 0; padding: 4px 12px 10px; font: 13px/1.6 var(--mono); white-space: pre-wrap; word-break: break-word; color: var(--green); }
+.py-ex-out.err { color: var(--red); }
+@media (max-width: 1240px) {
+  .course-grid { grid-template-columns: minmax(0, 1fr) minmax(320px, 400px); }
+  .course-side { display: none; }
+  .course-top { display: block; }
+}
+@media (max-width: 900px) {
+  .course-grid { grid-template-columns: minmax(0, 1fr); }
+  .course-chat { position: static; max-height: 80vh; min-height: 460px; }
+  .course-body { padding: 18px 16px; }
+  .course-title { font-size: 23px; }
 }

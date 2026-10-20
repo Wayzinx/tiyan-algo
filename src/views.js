@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "教程"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题训练"], ["kb", "知识库"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型教程"], ["py", "Python 语法"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题训练"], ["kb", "AI 知识"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -7,7 +7,7 @@ function parseRoute() {
   if (!t || t === "home") return { view: "home" };
   if (t.startsWith("t-")) return { view: "pattern", key: t.slice(2) };
   if (t.startsWith("p-")) return { view: "ws", id: t.slice(2) };
-  if (["learn", "problems", "review", "quiz", "ask", "kb"].includes(t)) return { view: t };
+  if (["learn", "problems", "review", "quiz", "ask", "kb", "py"].includes(t)) return { view: t };
   return { view: "home" };
 }
 function go(hash) { if (location.hash === "#" + hash) render(); else location.hash = hash; }
@@ -128,10 +128,15 @@ function viewHome() {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "今日任务"), h("a", { href: "#review", class: "small" }, "全部复习 →")),
         tasks,
-        h("div", { class: "row" }, h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn", href: "#kb" }, "知识库答疑"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
+        h("div", { class: "row" }, h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn", href: "#py" }, "Python 语法速查"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "题型地图"), h("span", { class: "small faint" }, "13 个题型，覆盖面试里绝大多数题")),
         patternTiles())),
+    h("div", { class: "grid-2" },
+      h("a", { class: "panel hub", href: "#py" }, h("div", { class: "eyebrow" }, "Python 刷题语法"), h("h2", null, "思路有了，别卡在写法上"),
+        h("p", { class: "muted" }, `${PYDATA.sections.length} 节：切片、推导式、deque、Counter、heapq、bisect、排序、递归、输入输出、常见坑……每个例子都能直接运行。`)),
+      h("a", { class: "panel hub", href: "#kb" }, h("div", { class: "eyebrow" }, "AI 知识"), h("h2", null, "大模型、Agent、Harness"),
+        h("p", { class: "muted" }, `${KNOW.length} 门课 ${KNOW.reduce((n, c) => n + c.sections.length, 0)} 节：原理、工程和开发实战，每节有面试问答和自测，不懂就问 AI。`))),
     h("section", { class: "panel" },
       h("div", { class: "panel-h" }, h("h2", null, "怎么刷才记得住")),
       h("div", { class: "rules" },
@@ -484,4 +489,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), py: () => viewPython(), ws: r => viewWorkspace(r) };

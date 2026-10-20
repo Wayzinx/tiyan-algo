@@ -6,10 +6,15 @@ r = lambda p: open(os.path.join(D, p), encoding="utf-8").read()
 problems = json.load(open(os.path.join(D, "data/problems.json"), encoding="utf-8"))
 pj = json.dumps(problems, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 harness = r("data/harness.py") + "\n\nbuild_list, build_tree, list_values, tree_values = _to_list, _to_tree, _from_list, _from_tree\nsys.setrecursionlimit(4000)\n"
+def data(name, empty):
+    p = os.path.join(D, "data", name)
+    if not os.path.exists(p): return empty
+    return json.dumps(json.load(open(p, encoding="utf-8")), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+knowledge, python = data("knowledge.json", "[]"), data("python.json", '{"groups":[],"sections":[]}')
 js = "\n".join(r("src/" + f) for f in ["patterns.js", "core.js", "chat.js", "views.js", "ws.js", "kb.js", "boot.js"])
 assert "</script" not in js.lower() and "</script" not in harness
 out = (r("src/shell.html").replace("/*CM_CSS*/", r("src/cm.css")).replace("/*APP_CSS*/", r("src/style.css"))
-       .replace("/*PROBLEMS*/", pj).replace("/*HARNESS*/", harness).replace("/*APP_JS*/", js))
+       .replace("/*PROBLEMS*/", pj).replace("/*KNOWLEDGE*/", knowledge).replace("/*PYTHON*/", python).replace("/*HARNESS*/", harness).replace("/*APP_JS*/", js))
 open(os.path.join(D, "public/index.html"), "w", encoding="utf-8").write(out)
 import hashlib
 build = hashlib.sha1(out.encode()).hexdigest()[:10]
