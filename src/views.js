@@ -8,6 +8,8 @@ function parseRoute() {
   if (t.startsWith("t-")) return { view: "pattern", key: t.slice(2) };
   if (t.startsWith("p-")) return { view: "ws", id: t.slice(2) };
   if (["learn", "problems", "review", "quiz", "ask", "kb", "py", "mock"].includes(t)) return { view: t };
+  if (["kb-daily", "kb-labs", "kb-wrong"].includes(t)) return { view: "kb", sub: t };
+  if (t.startsWith("lab-")) return { view: "lab", id: t.slice(4) };
   return { view: "home" };
 }
 function go(hash) { if (location.hash === "#" + hash) render(); else location.hash = hash; }
@@ -48,7 +50,7 @@ function renderNav() {
   nav.textContent = "";
   const due = dueList().length;
   for (const [k, label] of NAV) {
-    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws"));
+    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws") || (k === "kb" && S.route.view === "lab"));
     nav.append(h("a", { href: "#" + k, class: on ? "on" : "" }, label, k === "review" && due ? h("span", { class: "badge num" }, due) : ""));
   }
 }
@@ -491,4 +493,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), py: () => viewPython(), mock: () => viewMock(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), ws: r => viewWorkspace(r) };

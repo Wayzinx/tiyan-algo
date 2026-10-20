@@ -228,6 +228,11 @@ self.onmessage = async (e) => {
     }
     return;
   }
+  if (m.type === "pkg") {
+    try { await py.loadPackage(m.name); self.postMessage({ id: m.id, ok: true, out: "ok" }); }
+    catch (err) { self.postMessage({ id: m.id, ok: false, error: String((err && err.message) || err) }); }
+    return;
+  }
   try {
     const f = py.globals.get(m.fn);
     const out = f(...m.args);
@@ -289,7 +294,21 @@ const Py = {
     });
   },
   async json(fn, args, timeout) { return JSON.parse(await this.call(fn, args, timeout)); },
+  loaded: new Set(),
+  async loadPackage(name, timeout = 90000) {
+    if (this.loaded.has(name)) return;
+    const ok = await this.ready;
+    if (!ok) throw { message: "Python 运行环境不可用：" + this.error };
+    const id = ++this.seq;
+    await new Promise((res, rej) => {
+      const timer = setTimeout(() => { this.pending.delete(id); rej({ message: `加载 ${name} 超时，检查网络后重试` }); }, timeout);
+      this.pending.set(id, { res, rej, timer });
+      this.worker.postMessage({ id, type: "pkg", name });
+    });
+    this.loaded.add(name);
+  },
   restart() {
+    this.loaded = new Set();
     try { this.worker.terminate(); } catch (e) { /* ignore */ }
     for (const p of this.pending.values()) { clearTimeout(p.timer); p.rej({ message: "运行环境重启了，请再试一次" }); }
     this.pending.clear();

@@ -119,7 +119,7 @@ function knowGroups() {
 }
 function knowText(s) {
   return [`### ${s.title}`, s.summary, s.md, "要点：\n- " + (s.points || []).join("\n- "),
-    (s.interview || []).map(x => `面试问：${x.q}\n答：${x.a}`).join("\n\n")].join("\n\n");
+    (s.drill || s.interview || []).map(x => `面试问：${x.q}\n答：${x.a}`).join("\n\n")].join("\n\n");
 }
 function pyGroups() {
   return PYDATA.groups.map(g => ({ id: g, name: g, blurb: "", sections: PYDATA.sections.filter(s => s.group === g).map(s => Object.assign({ course: g }, s)) }));
@@ -235,13 +235,29 @@ function viewCourse(cfg) {
     const md = h("div", { class: "md course-md" });
     renderMd(md, s.md);
     const act = (label, prompt) => h("button", { class: "chip", type: "button", onclick: () => chat.send(`${prompt}\n\n【这一节：${s.course} › ${s.title}】\n${clip(cfg.text(s), 4000)}`, { label: `${label}：${clip(s.title, 18)}`, noPrefetch: true }) }, label);
+    const tabsDef = cfg.sectionTabs ? cfg.sectionTabs(s) : null;
+    let tab = tabsDef ? LS.get("tiyan:sectab:" + cfg.key, tabsDef[0][0]) : null;
+    if (tabsDef && !tabsDef.find(t => t[0] === tab)) tab = tabsDef[0][0];
+    const tabBody = h("div", { class: "stack", style: "gap:18px" });
+    const tabBar = tabsDef ? h("div", { class: "tabs sec-tabs" }) : "";
+    const drawTab = () => {
+      tabBody.textContent = "";
+      if (!tabsDef || tab === tabsDef[0][0]) tabBody.append(h("div", { class: "row course-actions" }, cfg.sectionActions.map(([l, p]) => act(l, p))), md, cfg.extra(s));
+      else tabBody.append(tabsDef.find(t => t[0] === tab)[2](s));
+      if (tabsDef) $$(".tab", tabBar).forEach(b => b.classList.toggle("on", b.dataset.k === tab));
+    };
+    if (tabsDef) for (const [kk, label] of tabsDef) {
+      const b = h("button", { class: "tab", type: "button", "data-k": kk }, label);
+      b.addEventListener("click", () => { tab = kk; LS.set("tiyan:sectab:" + cfg.key, kk); drawTab(); });
+      tabBar.append(b);
+    }
+    drawTab();
     body.append(
       h("div", { class: "eyebrow" }, `${s.course} · 第 ${(groups.find(g => g.sections.includes(s)) || { sections: [s] }).sections.indexOf(s) + 1} 节`),
       h("h1", { class: "course-title" }, s.title),
       s.summary ? h("div", { class: "oneline" }, s.summary) : "",
-      h("div", { class: "row course-actions" }, cfg.sectionActions.map(([l, p]) => act(l, p))),
-      md,
-      cfg.extra(s),
+      tabBar,
+      tabBody,
       h("div", { class: "spread course-pager" },
         i > 0 ? h("button", { class: "btn sm", type: "button", onclick: () => { markRead(s.id); open(all[i - 1].id); } }, "← " + clip(all[i - 1].title, 14)) : h("span"),
         h("button", { class: "btn sm" + (readSet.has(s.id) ? "" : " primary"), type: "button", onclick: () => { markRead(s.id); if (i < all.length - 1) open(all[i + 1].id); else toast("这一模块读完了"); } }, i < all.length - 1 ? "读完了，下一节 → " + clip(all[i + 1].title, 14) : "读完了")),
@@ -255,6 +271,7 @@ function viewCourse(cfg) {
   open(cur);
   return h("div", { class: "page wide course-page" },
     h("section", { class: "hero", style: "gap:8px" }, h("div", { class: "eyebrow" }, cfg.eyebrow), h("h1", null, cfg.title), h("p", { class: "lede" }, cfg.lede)),
+    cfg.pageTabs || "",
     h("div", { class: "course-grid" },
       h("aside", { class: "course-side" }, q, results, nav),
       h("div", { class: "course-main" }, h("div", { class: "course-top" }, sel), body, cfg.footer ? cfg.footer() : ""),
@@ -275,11 +292,27 @@ const KNOW_TEACHER = `你是「题眼」里的 AI 学习助教，帮学习者系
 3. 引用站内资料时在句末标【课程 › 小节】，出处必须真实存在。
 4. 中文，口语化、准确、简洁，用 Markdown。不确定就直说，不要编造版本号、数字和论文结论。`;
 
-function viewKB() {
+const KB_TABS = [["kb", "课程"], ["kb-daily", "每日练习"], ["kb-labs", "手写实战"], ["kb-wrong", "错题本"]];
+function kbPageTabs(cur) {
+  const wrong = Object.values(EX.all()).filter(r => EX.wrong(r)).length;
+  return h("nav", { class: "page-tabs", "aria-label": "AI 知识" }, KB_TABS.map(([k, t]) => h("a", { href: "#" + k, class: k === cur ? "on" : "" }, t,
+    k === "kb-wrong" && wrong ? h("span", { class: "badge num" }, wrong) : "",
+    k === "kb-daily" ? h("span", { class: "small faint" }, ` ${EX.today()}`) : "")));
+}
+function viewKB(sub) {
   NOTES.load();
+  const key = sub || "kb";
+  if (key !== "kb") {
+    const body = key === "kb-daily" ? viewDaily() : key === "kb-labs" ? viewLabList() : viewWrong();
+    const titles = { "kb-daily": ["每日练习", "每天 8 题，保持手感"], "kb-labs": ["手写实战", "面试要你手写的，先在这里写一遍"], "kb-wrong": ["错题本", "答错的题，再做一遍"] };
+    return h("div", { class: "page wide" },
+      h("section", { class: "hero", style: "gap:8px" }, h("div", { class: "eyebrow" }, "AI 知识 · " + titles[key][0]), h("h1", null, titles[key][1])),
+      kbPageTabs(key), body);
+  }
   return viewCourse({
-    key: "ai", eyebrow: "AI 知识", title: "大模型、Agent、Harness，一节一节学",
-    lede: "四门课：大模型原理、Agent 原理、Harness 工程、AI 应用开发实战。每节有要点、面试问答和自测题；看不懂的地方选中文字问 AI，或者直接在右边提问。",
+    key: "ai", eyebrow: "AI 知识", title: "大模型、Agent、Harness，一节一节学透",
+    lede: "五门课：大模型原理、Agent 原理、Harness 工程、AI 应用开发实战、Agent 系统架构与生产落地。每节分「讲解 / 练习 / 深挖」：讲解到原理、实现和生产落地；练习有选择题和简答题，AI 老师阅卷；深挖是面试官的层层追问，还能结合你的项目模拟面试。",
+    pageTabs: kbPageTabs("kb"),
     groups: () => knowGroups(),
     text: knowText,
     extraItems: () => NOTES.docs.flatMap(noteChunks),
@@ -288,21 +321,22 @@ function viewKB() {
     placeholder: "问任何不懂的：比如“harness 和 agent 框架有什么区别？”（Enter 发送）",
     intro: "我会先在站内课程里找依据再回答，并标出出处。读到不懂的地方，选中文字点「问 AI 这段」，或者用正文上方的按钮。",
     chatActions: [
-      { label: "给我一条学习路线", run: c => c.send("根据站内四门课的目录，给我一条 2 周的学习路线：每天学哪几节、学完应该能回答什么问题、怎么检验自己学会了。", { label: "学习路线" }) },
+      { label: "给我一条学习路线", run: c => c.send("根据站内五门课的目录，给我一条 3 周的学习路线：每天学哪几节、配哪些手写实战、学完应该能回答什么问题、怎么检验自己学会了。", { label: "学习路线" }) },
       { label: "随机考我一题", run: c => c.send("从站内课程里随机挑一个重要知识点，出一道面试式问题考我。只出题，等我回答后再点评，先别给答案。", { label: "随机考我一题", noPrefetch: true }) },
-      { label: "面试高频 10 问", run: c => c.send("列出 AI / Agent 方向面试最常问的 10 个问题，按重要程度排序；每题给一句话答题要点，并标出对应的站内小节。", { label: "面试高频 10 问" }) },
+      { label: "面试高频 10 问", run: c => c.send("列出 Agent 开发 / AI 应用开发方向面试最常问的 10 个问题，按重要程度排序；每题给一句话答题要点，并标出对应的站内小节。", { label: "面试高频 10 问" }) },
     ],
     sectionActions: [
       ["讲解这一节", "请讲解这一节：一句话核心 → 关键概念（用类比）→ 一个具体例子 → 2 个最容易误解的点。"],
       ["换个说法讲", "我没太懂这一节。请完全换一种讲法：用一个生活中的类比从头讲一遍，少用术语，最后再把术语对应回去。"],
-      ["出题考我", "根据这一节出 3 道自测题，由浅入深，最后一道是面试式开放题。每题用 <details><summary>题目</summary>参考答案</details> 的格式。"],
-      ["面试追问我", "扮演面试官，围绕这一节对我连续追问：先问一个基础问题，等我回答后再根据我的回答往深处追问。现在只问第一个问题。"],
+      ["落地怎么做", "如果要在真实项目里落地这一节的内容，完整方案是什么？请按：目标与指标 → 架构/流程 → 关键实现 → 上线前测试 → 线上监控与排障 的顺序讲，并给出 3 个最容易踩的坑。"],
+      ["面试追问我", "扮演面试官，围绕这一节对我连续追问：先问一个基础问题，等我回答后再根据我的回答往深处追问（原理 → 实现 → 落地 → 取舍）。现在只问第一个问题。"],
       ["画图讲解", "用一张 ASCII 示意图（放在代码块里）画出这一节讲的机制或流程，然后按图一步步解释。"],
     ],
+    sectionTabs: s => [["learn", "讲解"], ["practice", `练习 ${(s.choice || []).length + (s.short || []).length}`, sectionPractice], ["drill", `深挖 ${(s.drill || []).length}`, sectionDrill]],
     extra: s => h("div", { class: "stack", style: "gap:18px" },
       s.points && s.points.length ? h("section", { class: "stack", style: "gap:8px" }, h("h3", null, "速记要点"), h("ul", { class: "signals" }, s.points.map(p => h("li", null, h("span", null, p))))) : "",
-      qaList("面试怎么答", s.interview),
-      qaList("自测", s.quiz),
+      s.interview ? qaList("面试怎么答", s.interview) : "",
+      s.labs && s.labs.length ? h("section", { class: "stack", style: "gap:8px" }, h("h3", null, "动手实现"), h("div", { class: "row" }, s.labs.map(id => { const l = LABS.find(x => x.id === id); return l ? h("a", { class: "chip", href: "#lab-" + id.replace(/^lab-/, "") }, "手写：" + l.title) : ""; }))) : "",
       s.related && s.related.length ? h("div", { class: "row small" }, h("span", { class: "faint" }, "相关："), s.related.map(r => { const t = knowGroups().flatMap(g => g.sections).find(x => x.id === r); return t ? h("a", { href: "#kb", onclick: e => { e.preventDefault(); LS.set("tiyan:sec:ai", r); render(); } }, t.title) : ""; })) : ""),
     footer: () => notesPanel(),
   });

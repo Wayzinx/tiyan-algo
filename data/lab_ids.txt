@@ -1,0 +1,28 @@
+lab-tool-loop        agent    实现工具调用主循环（最大轮数、工具报错回填、并行工具调用）
+lab-tool-schema      dev      从 Python 函数签名生成 JSON Schema，并校验模型给的参数
+lab-json-repair      dev      从模型输出里提取并修复 JSON（代码块、前后废话、尾逗号、单引号）
+lab-retry-backoff    dev      指数退避 + 抖动的重试（区分可重试错误，注入 sleep 与随机数）
+lab-rate-limiter     arch     令牌桶限流器（注入时钟）
+lab-context-trim     harness  按 token 预算裁剪对话历史（保留 system、最近轮次、工具调用配对完整）
+lab-compaction       harness  对话压缩：超预算时把早期消息替换成摘要（摘要函数注入）
+lab-chunker          agent    Markdown 按标题切分 + 长段落重叠切块
+lab-bm25             agent    实现 BM25 检索
+lab-hybrid-rrf       agent    混合检索：用 RRF 融合两路排序结果
+lab-react-parser     agent    解析 ReAct 格式输出（Thought / Action / Action Input / Final Answer）
+lab-mcp-jsonrpc      agent    最小的 MCP 风格 JSON-RPC 2.0 服务端（initialize、tools/list、tools/call、错误码）
+lab-permission       harness  工具权限规则匹配（allow / ask / deny、通配符、deny 优先）
+lab-hooks            harness  PreToolUse / PostToolUse 钩子管线（可拦截、可改参数、可改结果）
+lab-passk            agent    pass@k 无偏估计与按标签汇总评测结果
+lab-judge-agreement  dev      LLM 评审与人工标注的一致性：准确率、Cohen's kappa、混淆矩阵
+lab-prefix-cache     harness  计算 prompt 缓存命中长度（按块对齐的最长公共前缀）
+lab-ttl-lru          arch     带 TTL 的 LRU 缓存（注入时钟）
+lab-sse-parser       dev      解析流式 SSE：文本增量、工具调用参数增量拼接、[DONE]
+lab-dag-runner       arch     任务 DAG 分层并行执行（拓扑分层、检测环、失败传播）
+lab-attention        llm      带 causal mask 的缩放点积注意力（numpy，数值稳定 softmax）
+lab-mha-kvcache      llm      多头注意力 + KV Cache 增量解码，结果与全量计算一致（numpy）
+lab-rmsnorm-rope     llm      RMSNorm 与 RoPE 旋转位置编码（numpy）
+lab-lora             llm      LoRA 线性层：前向计算、合并权重（numpy）
+lab-sampling         llm      temperature / top-k / top-p 采样（numpy，注入随机数）
+lab-dpo-grpo         llm      DPO loss 与 GRPO 组内优势标准化（numpy）
+lab-bpe              llm      简化版 BPE：训练合并规则并编码
+lab-ce-ppl           llm      交叉熵、困惑度与标签平滑（numpy）

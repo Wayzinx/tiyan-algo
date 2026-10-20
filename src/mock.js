@@ -70,7 +70,7 @@ function roleLine(s) { return s.role === "自定义岗位" ? "（岗位见 JD）
 
 const MOCK_P = {
   plan: s => `你是一位资深技术面试官，正在面试应聘「${roleLine(s)}」的候选人。${s.jd ? "\n岗位 JD：\n" + clip(s.jd, 3000) : ""}
-面试类型：${MOCK_TYPES.find(t => t[0] === s.type)[2]}。难度：${s.level}。${s.focus ? "\n这一轮重点考察候选人上次暴露的薄弱点：" + s.focus : ""}
+面试类型：${MOCK_TYPES.find(t => t[0] === s.type)[2]}。难度：${s.level}。${s.focus ? "\n这一轮的考察重点：" + s.focus : ""}
 请根据候选人的材料设计 ${s.count} 道主问题：
 - 项目深挖题要具体到材料里的某个项目、设计点或数字；
 - 基础知识题围绕岗位核心知识，尽量和候选人用过的技术挂钩；
@@ -119,7 +119,10 @@ ${knowList()}
 function viewMock() {
   const root = h("div", { class: "page mock-page" });
   const cur = MK.current();
+  const preset = LS.get("tiyan:mock:preset", null);
+  if (preset) { LS.del("tiyan:mock:preset"); if (cur && cur.phase !== "interview") MK.setCurrent(null); }
   if (cur && cur.phase === "interview") drawInterview(root, cur);
+  else if (preset) drawSetup(root, preset.focus, preset);
   else if (cur && cur.phase === "report") drawReport(root, cur);
   else drawSetup(root);
   onLeave(() => { TTS.stop(); if (MOCKCTL) MOCKCTL.abort(); stopVoice(); });
@@ -128,9 +131,9 @@ function viewMock() {
 let MOCKCTL = null;
 
 // ----- 设置页 -----
-function drawSetup(root, presetFocus) {
+function drawSetup(root, presetFocus, preset) {
   root.textContent = "";
-  const cfg = MK.cfg();
+  const cfg = Object.assign(MK.cfg(), preset && preset.type ? { type: preset.type } : {}, preset && preset.count ? { count: preset.count } : {});
   const resume = h("textarea", { id: "mock-resume", class: "mock-input", placeholder: "粘贴你的简历、项目介绍或准备稿（Markdown / 纯文字都行）。面试官会根据它出题、追问，并核对你回答里的事实。" });
   resume.value = MK.resume();
   let t = null;
@@ -190,7 +193,7 @@ function drawSetup(root, presetFocus) {
   root.append(
     h("section", { class: "hero" }, h("div", { class: "eyebrow" }, "模拟面试"), h("h1", null, "让 AI 面试官先问你一遍"),
       h("p", { class: "lede" }, "面试官根据你的简历和项目材料出题、追问；每答完一题给五个维度的评分、问题清单、优化后的示范回答和需要补的知识；结束后出一份复盘报告。")),
-    presetFocus ? h("div", { class: "callout blue" }, h("b", null, "这一轮针对上次的薄弱点："), presetFocus) : "",
+    presetFocus ? h("div", { class: "callout blue" }, h("b", null, preset && preset.type ? "这一轮的重点：" : "这一轮针对上次的薄弱点："), presetFocus) : "",
     h("div", { class: "grid-home", style: "grid-template-columns:minmax(0,7fr) minmax(0,5fr)" },
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "你的材料"), counter),

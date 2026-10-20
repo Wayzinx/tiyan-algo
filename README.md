@@ -31,7 +31,12 @@ cd ~/tiyan-algo && node server.mjs                                         # 打
 - `public/`：网站本体（`index.html`、`sw.js` 由 `build.py` 生成；`pyodide/` 是浏览器里的 Python；`vendor/` 是前端库；`manifest.webmanifest` 和 `icons/` 用于安装成 App）
 - `functions/api/`：Cloudflare 上的接口；`lib/proxy.js` 是本机和 Cloudflare 共用的转发逻辑
 - `server.mjs`：本机服务器
-- `src/`：前端源码；`data/`：题库（`problems.py` → `gen.py` 校验生成 `problems.json`）
+- `src/`：前端源码
+- `data/`：内容和校验脚本
+  - 算法题库：`problems.py` → `gen.py` → `problems.json`
+  - AI 知识（5 门课）：`k2/*.py` → `gen_knowledge2.py` → `knowledge.json`
+  - 手写实战：`labs/*.py` → `gen_labs.py`（需要带 numpy 的 Python 3.12）→ `labs.json`
+  - Python 刷题语法：`python_features.py` → `gen_python.py` → `python.json`
 
 改了 `src/` 或 `data/problems.json` 之后运行 `python3 build.py` 重新生成页面。
 

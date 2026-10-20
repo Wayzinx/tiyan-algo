@@ -232,6 +232,57 @@ def run_snippet(code, stdin_text=""):
     return json.dumps({"stdout": out[:6000], "error": err}, ensure_ascii=False)
 
 
+def run_lab(user_code, tests_code):
+    """手写实战：执行学习者代码，再逐个运行 tests 里的 test_ 函数。返回 JSON 字符串。"""
+    result = {"compile_error": None, "cases": [], "passed": 0, "total": 0, "stdout": ""}
+    buf = io.StringIO()
+    old_out = sys.stdout
+    sys.stdout = buf
+    try:
+        ns = {"__name__": "__lab__"}
+        try:
+            exec(_src(user_code, "solution.py"), ns)
+        except Exception as e:
+            result["compile_error"] = _fmt_exc(e)
+            return json.dumps(result, ensure_ascii=False)
+        tns = dict(ns)
+        try:
+            exec(_src(tests_code, "tests.py"), tns)
+        except Exception as e:
+            result["compile_error"] = "测试代码加载失败（可能是你的代码缺少某个函数或类）：" + _fmt_exc(e)
+            return json.dumps(result, ensure_ascii=False)
+        tests = [(k, v) for k, v in tns.items() if k.startswith("test_") and callable(v)]
+        result["total"] = len(tests)
+        for name, fn in tests:
+            case = {"name": name, "doc": (fn.__doc__ or "").strip()}
+            start = time.perf_counter()
+            try:
+                fn()
+                case["pass"] = True
+                result["passed"] += 1
+            except AssertionError as e:
+                case["pass"] = False
+                case["error"] = "断言失败" + (("：" + str(e)) if str(e) else "") + _where(e)
+            except Exception as e:
+                case["pass"] = False
+                case["error"] = _fmt_exc(e)
+            case["ms"] = round((time.perf_counter() - start) * 1000, 1)
+            result["cases"].append(case)
+    finally:
+        sys.stdout = old_out
+        out = buf.getvalue()
+        result["stdout"] = out if len(out) < 4000 else out[:4000] + "\n…（输出过长已截断）"
+    return json.dumps(result, ensure_ascii=False)
+
+
+def _where(e):
+    tb = [fr for fr in traceback.extract_tb(e.__traceback__) if fr.filename == "tests.py"]
+    if not tb:
+        return ""
+    fr = tb[-1]
+    return "（tests.py 第 %d 行：%s）" % (fr.lineno, (fr.line or "").strip())
+
+
 def _src(code, name):
     linecache.cache[name] = (len(code), None, code.splitlines(True), name)
     return compile(code, name, "exec")
@@ -239,7 +290,7 @@ def _src(code, name):
 
 def _fmt_exc(e):
     tb = traceback.extract_tb(e.__traceback__)
-    lines = [fr for fr in tb if fr.filename in ("solution.py", "snippet.py", "reference.py")]
+    lines = [fr for fr in tb if fr.filename in ("solution.py", "snippet.py", "reference.py", "tests.py")]
     where = ""
     if lines:
         fr = lines[-1]

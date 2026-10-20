@@ -607,3 +607,30 @@ select.btn { padding-right: 8px; }
   .mock-board { position: static; order: -1; }
   .mock-msg { max-width: 100%; }
 }
+
+/* ---------- 练习 / 实战 ---------- */
+.page-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.page-tabs a { padding: 8px 14px; color: var(--ink-2); text-decoration: none !important; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; font-size: 14.5px; }
+.page-tabs a:hover { color: var(--ink); }
+.page-tabs a.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.page-tabs .badge { display: inline-block; min-width: 18px; padding: 0 5px; margin-left: 4px; border-radius: 9px; background: var(--red); color: var(--surface); font-size: 11px; line-height: 18px; text-align: center; font-weight: 600; }
+.sec-tabs { padding: 0; border-bottom: 1px solid var(--line); }
+.ex-item { display: grid; gap: 10px; padding: 14px 0; border-bottom: 1px dashed var(--line); }
+.ex-item:last-child { border-bottom: 0; }
+.panel > .ex-item { border-bottom: 0; padding: 0; }
+.ex-q { font-weight: 600; line-height: 1.6; }
+.ex-opts { display: grid; gap: 6px; }
+.ex-opt { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--line); border-radius: 7px; cursor: pointer; background: var(--paper); font-size: 14.5px; line-height: 1.55; }
+.ex-opt:hover { border-color: var(--accent); }
+.ex-opt input { margin-top: 4px; flex: none; accent-color: var(--accent); }
+.ex-opt.right { border-color: var(--green); background: var(--green-soft); }
+.ex-opt.wrong { border-color: var(--red); background: var(--red-soft); }
+.ex-result { display: grid; gap: 8px; padding: 12px 14px; border-radius: 8px; background: var(--surface-2); }
+.ex-result b.ok { color: var(--green); }
+.ex-result b.bad { color: var(--red); }
+.ex-points { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.ex-points li { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 8px; }
+.ex-points b { font-size: 12px; font-weight: 600; }
+.ex-points .hit b { color: var(--green); }
+.ex-points .part b { color: var(--amber); }
+.ex-points .miss b { color: var(--red); }
