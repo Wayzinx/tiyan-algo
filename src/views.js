@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "教程"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题训练"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "教程"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题训练"], ["kb", "知识库"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -7,7 +7,7 @@ function parseRoute() {
   if (!t || t === "home") return { view: "home" };
   if (t.startsWith("t-")) return { view: "pattern", key: t.slice(2) };
   if (t.startsWith("p-")) return { view: "ws", id: t.slice(2) };
-  if (["learn", "problems", "review", "quiz", "ask"].includes(t)) return { view: t };
+  if (["learn", "problems", "review", "quiz", "ask", "kb"].includes(t)) return { view: t };
   return { view: "home" };
 }
 function go(hash) { if (location.hash === "#" + hash) render(); else location.hash = hash; }
@@ -128,7 +128,7 @@ function viewHome() {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "今日任务"), h("a", { href: "#review", class: "small" }, "全部复习 →")),
         tasks,
-        h("div", { class: "row" }, h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
+        h("div", { class: "row" }, h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn", href: "#kb" }, "知识库答疑"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "题型地图"), h("span", { class: "small faint" }, "13 个题型，覆盖面试里绝大多数题")),
         patternTiles())),
@@ -484,4 +484,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), ws: r => viewWorkspace(r) };

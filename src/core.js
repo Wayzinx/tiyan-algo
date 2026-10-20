@@ -354,7 +354,8 @@ const AI = {
     if (!this.ok()) throw { code: { locked: "locked", nokey: "no_key", needkey: "need_key" }[S.ai] || "unavailable" };
     const messages = mergeTurns(typeof input === "string" ? [{ role: "user", content: input }] : input);
     if (!messages.length || messages[messages.length - 1].role !== "user") throw { code: "invalid_request" };
-    const tools = o.tools && S.py === "ready" ? o.tools : null;
+    let tools = o.tools ? o.tools.filter(t => !t.needsPy || S.py === "ready") : null;
+    if (tools && !tools.length) tools = null;
     const spec = tools ? tools.map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema || { type: "object", properties: {} } } })) : undefined;
     let full = "", truncated = false;
     const MAX = 6;

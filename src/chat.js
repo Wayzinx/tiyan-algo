@@ -203,7 +203,7 @@ class Chat {
 function pyTools(p) {
   return view => {
     const tools = [{
-      name: "run_python",
+      name: "run_python", needsPy: true,
       description: "在浏览器里的 Python 3.12 中运行一段完整代码，返回 {stdout, error}。可以直接用 ListNode、TreeNode、build_list(数组)、build_tree(层序数组)、list_values(链表)、tree_values(树)，以及 collections / heapq / bisect / functools 等标准库。单次限时 8 秒。",
       inputSchema: { type: "object", properties: { code: { type: "string", description: "要运行的 Python 代码，用 print 输出你需要看的结果" } }, required: ["code"] },
       execute: async input => {
@@ -213,7 +213,7 @@ function pyTools(p) {
       },
     }];
     if (p && p.solution) tools.push({
-      name: "compare_with_reference",
+      name: "compare_with_reference", needsPy: true,
       description: "用学习者编辑器里的当前代码和参考解分别运行若干组输入，返回每组输入下两者的输出以及是否一致。inputs 是“参数列表”的数组，例如 [[[2,7,11,15], 9], [[3,3], 6]]；链表、树用数组表示（树用层序数组，空位写 null）。",
       inputSchema: { type: "object", properties: { inputs: { type: "array", items: { type: "array" }, description: "每一项是一组函数参数" } }, required: ["inputs"] },
       execute: async input => {

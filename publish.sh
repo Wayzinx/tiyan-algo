@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")"
 python3 build.py
 git add -A
-git commit -qm "更新 $(date '+%Y-%m-%d %H:%M')" || true
+git commit -qm "${1:-更新 $(date "+%Y-%m-%d %H:%M")}" || true
 git push -q origin main
 git subtree split --prefix public -b gh-pages-build >/dev/null
 git push -fq origin gh-pages-build:gh-pages

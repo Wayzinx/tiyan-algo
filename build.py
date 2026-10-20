@@ -6,7 +6,7 @@ r = lambda p: open(os.path.join(D, p), encoding="utf-8").read()
 problems = json.load(open(os.path.join(D, "data/problems.json"), encoding="utf-8"))
 pj = json.dumps(problems, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 harness = r("data/harness.py") + "\n\nbuild_list, build_tree, list_values, tree_values = _to_list, _to_tree, _from_list, _from_tree\nsys.setrecursionlimit(4000)\n"
-js = "\n".join(r("src/" + f) for f in ["patterns.js", "core.js", "chat.js", "views.js", "ws.js", "boot.js"])
+js = "\n".join(r("src/" + f) for f in ["patterns.js", "core.js", "chat.js", "views.js", "ws.js", "kb.js", "boot.js"])
 assert "</script" not in js.lower() and "</script" not in harness
 out = (r("src/shell.html").replace("/*CM_CSS*/", r("src/cm.css")).replace("/*APP_CSS*/", r("src/style.css"))
        .replace("/*PROBLEMS*/", pj).replace("/*HARNESS*/", harness).replace("/*APP_JS*/", js))

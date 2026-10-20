@@ -505,3 +505,25 @@ select.btn { padding-right: 8px; }
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .steps li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; }
 .steps li > b:first-child { color: var(--red); font-family: var(--serif); }
+
+/* ---------- 知识库 ---------- */
+.kb-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.kb-left { max-height: calc(100vh - var(--top) - 40px); position: sticky; top: calc(var(--top) + 12px); grid-template-rows: auto auto minmax(0, 1fr) auto auto; overflow: hidden; }
+.kb-outline { max-height: 200px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; flex-direction: column; gap: 1px; }
+.kb-outline .kb-ol { flex: none; }
+.kb-ol { text-align: left; border: 0; background: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kb-ol:hover { background: var(--surface-2); color: var(--ink); }
+.kb-ol.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.kb-read-wrap { position: relative; overflow: auto; min-height: 200px; display: grid; gap: 8px; align-content: start; padding-right: 4px; }
+.kb-reader { font-size: 15px; }
+.kb-reader ::selection { background: var(--hl); }
+.kb-ask { position: absolute; z-index: 4; box-shadow: var(--shadow); }
+.kb-chat { max-height: calc(100vh - var(--top) - 40px); min-height: 560px; position: sticky; top: calc(var(--top) + 12px); }
+.kb-chat .msgs { max-height: none; }
+@media (max-width: 960px) {
+  .kb-grid { grid-template-columns: minmax(0, 1fr); }
+  .kb-left, .kb-chat { position: static; max-height: none; }
+  .kb-left { overflow: visible; }
+  .kb-read-wrap { max-height: 60vh; }
+  .kb-chat { min-height: 480px; max-height: 80vh; }
+}
