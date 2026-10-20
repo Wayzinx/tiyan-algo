@@ -2418,6 +2418,9 @@ async function readDocFile(file, step = () => {}) {
 }
 
 // ---------- 对话组件：做题页、题型页、问老师页共用 ----------
+// 正在进行的对话请求：离开页面不中断，回来后新页面接着显示同一个回答
+const CHAT_JOBS = {};   // key → { text, views: Set, ctl, progress }
+const CHAT_LIVE = {};   // key → 当前页面上的 Chat 实例
 class Chat {
   constructor({ key, context, placeholder, actions, intro, images }) {
     this.key = key;
@@ -2456,7 +2459,7 @@ class Chat {
     });
     this.ta.addEventListener("input", () => { this.ta.style.height = "auto"; this.ta.style.height = Math.min(160, this.ta.scrollHeight + 2) + "px"; });
     this.sendBtn.addEventListener("click", () => this.submit());
-    this.stopBtn.addEventListener("click", () => { if (this.ctl) this.ctl.abort(); });
+    this.stopBtn.addEventListener("click", () => { const j = CHAT_JOBS[this.key]; if (j) j.ctl.abort(); });
     if (this.actEl) for (const a of this.actions) {
       const b = h("button", { class: "chip", type: "button", title: a.title || "" }, a.label);
       b.addEventListener("click", () => { if (!this.busy) a.run(this); });
@@ -2465,6 +2468,15 @@ class Chat {
     }
     if (!this.msgs.length && intro) this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), h("div", { class: "md muted" }, intro)));
     for (const m of this.msgs) this.renderMsg(m, false);
+    CHAT_LIVE[key] = this;
+    const job = CHAT_JOBS[key];
+    if (job) {                       // 上次离开时还在回答：接上
+      const view = this.renderMsg({ role: "assistant", content: "" }, true);
+      if (job.text) { view.status.hidden = true; renderMd(view.md, job.text); }
+      else if (job.progress) view.progress(job.progress);
+      job.views.add(view);
+      this.busy = true;
+    }
     this.sync();
   }
   sync() {
@@ -2577,41 +2589,64 @@ class Chat {
   }
   setBusy(b) { this.busy = b; this.sync(); }
   async send(prompt, o = {}) {
-    if (!AI.ok()) { toast(aiErr({ code: S.ai === "denied" ? "not_granted" : "unavailable" })); return null; }
-    if (this.busy) return null;
-    const userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
-    this.msgs.push(userMsg);
-    this.renderMsg(userMsg, false);
+    if (!AI.ok()) { toast(aiErr({ code: S.ai === "denied" ? "not_granted" : S.ai === "needkey" ? "need_key" : "unavailable" })); return null; }
+    if (this.busy || CHAT_JOBS[this.key]) return null;
+    const key = this.key, msgs = this.msgs;
+    let userMsg = o.retryOf;
+    if (!userMsg) {
+      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
+      msgs.push(userMsg);
+      this.renderMsg(userMsg, false);
+    }
     const aiMsg = { role: "assistant", content: "" };
     const view = this.renderMsg(aiMsg, true);
+    const job = CHAT_JOBS[key] = { text: "", views: new Set([view]), ctl: new AbortController(), progress: "" };
     this.setBusy(true);
-    const ctl = this.ctl = new AbortController();
     const turns = [{ role: "user", content: this.context() }];
-    for (const m of this.msgs.slice(-12)) if (m.content) turns.push({ role: m.role, content: clip(m.content, 6000) });
-    let latest = "", queued = false;
-    const paint = () => { queued = false; renderMd(view.md, latest); this.scroll(); };
-    let out = null;
+    for (const m of msgs.slice(-12)) if (m.content) turns.push({ role: m.role, content: clip(m.content, 6000) });
+    let queued = false;
+    const paint = () => { queued = false; for (const v of job.views) { v.status.hidden = true; renderMd(v.md, job.text); } const live = CHAT_LIVE[key]; if (live) live.scroll(); };
+    const jobView = { progress: t => { job.progress = t; for (const v of job.views) v.progress(t); } };
+    let out = null, failed = null, partial = "";
     try {
       const res = await AI.ask(turns, {
-        signal: ctl.signal, tier: o.tier, images: o.images || undefined,
-        tools: o.tools ? o.tools(view) : undefined,
-        onText: ({ text }) => { latest = text; view.status.hidden = true; if (!queued) { queued = true; requestAnimationFrame(paint); } },
+        signal: job.ctl.signal, tier: o.tier, images: o.images || undefined,
+        tools: o.tools ? o.tools(jobView) : undefined,
+        onText: ({ text }) => { job.text = text; if (!queued) { queued = true; requestAnimationFrame(paint); } },
       });
       aiMsg.content = res.text;
-      renderMd(view.md, res.text);
-      if (res.truncated) view.note("回答太长被截断了，可以说“接着讲”。");
-      this.msgs.push(aiMsg);
+      job.text = res.text;
+      paint();
+      if (res.truncated) for (const v of job.views) v.note("回答太长被截断了，可以说“接着讲”。");
+      msgs.push(aiMsg);
       out = res.text;
     } catch (e) {
-      const part = e && e.text;
-      if (part) { aiMsg.content = part; renderMd(view.md, part); this.msgs.push(aiMsg); }
-      const msg = aiErr(e);
-      view.note(msg || (part ? "已停止。" : "已停止。"));
+      partial = (e && e.text) || "";
+      failed = e;
+      if (partial) { aiMsg.content = partial; job.text = partial; paint(); msgs.push(aiMsg); }
     } finally {
-      view.done();
-      this.ctl = null;
-      this.setBusy(false);
-      this.scroll();
+      delete CHAT_JOBS[key];
+      for (const v of job.views) {
+        v.done();
+        if (failed) {
+          const msg = aiErr(failed) || "已停止。";
+          v.note(msg);
+          if (!partial || failed.code !== "cancelled") {
+            const retry = h("button", { class: "btn sm", type: "button" }, "重试");
+            retry.addEventListener("click", () => {
+              const live = CHAT_LIVE[key];
+              if (!live || live.busy) return;
+              const i = msgs.indexOf(aiMsg); if (i >= 0) msgs.splice(i, 1);
+              v.wrap.remove();
+              live.send(userMsg.content, Object.assign({}, o, { retryOf: userMsg }));
+            });
+            v.wrap.append(h("div", { class: "row" }, retry));
+          }
+        }
+      }
+      const live = CHAT_LIVE[key];
+      if (live) { live.setBusy(false); live.scroll(); }
+      if (this !== live) this.busy = false;
     }
     if (out && o.onDone) o.onDone(out);
     return out;
@@ -2974,7 +3009,7 @@ function viewPattern({ key }) {
     ],
   });
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   const first = ps.find(p => !p.custom);
   return h("div", { class: "page" },
     h("div", { class: "row small" }, h("a", { href: "#learn" }, "教程"), h("span", { class: "faint" }, "/"), h("span", { class: "muted" }, pt.name)),
@@ -3198,7 +3233,7 @@ function viewAsk() {
     ],
   });
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   // 导入题目
   const ta = h("textarea", { id: "import-text", placeholder: "粘贴题目原文：力扣、牛客、面经里的题都行。包含题意、示例、约束越完整越好。" });
   ta.value = S.importDraft || "";
@@ -3297,7 +3332,7 @@ function viewWorkspace({ id }) {
   if (!p) return h("div", { class: "page" }, h("h1", null, "没找到这道题"), h("p", { class: "muted" }, "它可能已经被删除了。"), h("a", { class: "btn", href: "#problems" }, "回到题库"));
   const W = S.ws = { pid: id, p, cm: null, last: null, used: { hint: false, sol: false }, aiHint: 0, redo: S.redo === id };
   S.redo = null;
-  onLeave(() => { if (S.ws === W) S.ws = null; if (W.chat && W.chat.ctl) W.chat.ctl.abort(); if (W.player) W.player.pause(); if (W.vizCtl) W.vizCtl.abort(); S.liveChats = []; });
+  onLeave(() => { if (S.ws === W) S.ws = null; if (W.chat && CHAT_LIVE[W.chat.key] === W.chat) delete CHAT_LIVE[W.chat.key]; if (W.player) W.player.pause(); S.liveChats = []; });
 
   // ----- 头部 -----
   const pill = h("span");
@@ -4101,7 +4136,7 @@ function viewCourse(cfg) {
     return rawSend(prompt, Object.assign({ tools: view => tools(view).concat(extra ? extra(view) : []) }, o));
   };
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
 
   // 左栏：目录
   const nav = h("nav", { class: "course-nav", "aria-label": cfg.title + "目录" });
@@ -4518,10 +4553,11 @@ function viewMock() {
   else if (preset) drawSetup(root, preset.focus, preset);
   else if (cur && cur.phase === "report") drawReport(root, cur);
   else drawSetup(root);
-  onLeave(() => { TTS.stop(); if (MOCKCTL) MOCKCTL.abort(); stopVoice(); });
+  onLeave(() => { TTS.stop(); stopVoice(); if (MOCK_VIEW && MOCK_VIEW.root === root) MOCK_VIEW = null; });
   return root;
 }
 let MOCKCTL = null;
+let MOCK_PLANNING = false;     // 正在出题（离开页面也会继续）
 
 // ----- 设置页 -----
 function drawSetup(root, presetFocus, preset) {
@@ -4578,8 +4614,9 @@ function drawSetup(root, presetFocus, preset) {
     LS.set("tiyan:mock:resume", resume.value);
     const s = Object.assign({ id: "m" + Date.now().toString(36), at: Date.now(), phase: "plan", resume: resume.value.trim(), cards: MK.cards(), items: [], idx: 0, focus: presetFocus || "" }, c);
     startBtn.disabled = true;
-    status.textContent = "面试官正在看你的材料、准备问题……（大约 20–60 秒）";
+    status.textContent = "面试官正在看你的材料、准备问题……（大约 20–60 秒，可以先去别的页面）";
     MOCKCTL = new AbortController();
+    MOCK_PLANNING = true;
     try {
       const plan = await AI.ask(MOCK_P.plan(s), { json: true, tier: "complex", signal: MOCKCTL.signal });
       const qs = (plan && Array.isArray(plan.questions) ? plan.questions : []).filter(q => q && q.q).slice(0, 12);
@@ -4587,14 +4624,22 @@ function drawSetup(root, presetFocus, preset) {
       s.opening = String(plan.opening || "你好，我们开始吧。");
       s.plan = qs.map(q => ({ q: String(q.q), type: String(q.type || ""), focus: String(q.focus || ""), source: String(q.source || "") }));
       s.phase = "interview";
-      s.items = [Object.assign({ main: 0 }, s.plan[0])];
+      s.items = [Object.assign({ main: 0, at: Date.now() }, s.plan[0])];
       MK.setCurrent(s);
-      drawInterview(root, s);
+      MOCK_PLANNING = false;
+      if (document.body.contains(root)) drawMockRoot(root);
+      else if (location.hash === "#mock") render();
     } catch (e) {
+      MOCK_PLANNING = false;
       status.textContent = e && e.code ? aiErr(e) : "开始失败：" + ((e && e.message) || e);
-    } finally { startBtn.disabled = false; MOCKCTL = null; }
+      if (!document.body.contains(root)) toast("模拟面试没能开始：" + status.textContent, 5000);
+    } finally { startBtn.disabled = false; MOCKCTL = null; MOCK_PLANNING = false; }
   });
 
+  if (MOCK_PLANNING) {
+    startBtn.disabled = true;
+    status.append(h("span", { class: "thinking" }, "面试官还在准备上一场的问题，好了会自动进入面试……"), " ", h("button", { class: "btn ghost sm", type: "button", onclick: () => { if (MOCKCTL) MOCKCTL.abort(); } }, "取消"));
+  }
   const hist = MK.sessions().filter(x => x.report);
   root.append(
     h("section", { class: "hero" }, h("div", { class: "eyebrow" }, "模拟面试"), h("h1", null, "让 AI 面试官先问你一遍"),
@@ -4701,142 +4746,184 @@ function historyPanel(root, hist) {
 }
 
 // ----- 面试进行中 -----
+// ----- 面试进行中 -----
+// AI 任务（评分 / 提示 / 复盘）独立于页面运行：离开页面不会中断，结果写回保存的会话；页面每次从保存的状态重新绘制。
+const MOCK_JOBS = {};          // 会话 id → { kind: "eval" | "hint" | "report", idx, ctl }
+let MOCK_VIEW = null;          // 当前挂在页面上的面试视图 { sid, root }
+function drawMockRoot(root) {
+  const cur = MK.current();
+  if (cur && cur.phase === "interview") drawInterview(root, cur);
+  else if (cur && cur.phase === "report") drawReport(root, cur);
+  else drawSetup(root);
+}
+function mockRedraw(sid) {
+  if (MOCK_VIEW && MOCK_VIEW.sid === sid && document.body.contains(MOCK_VIEW.root)) drawMockRoot(MOCK_VIEW.root);
+}
+function mockAdvance(s, it) {
+  const followCount = s.items.filter(x => x.main === it.main && x.follow).length;
+  if (it.eval && it.eval.follow_up && followCount < (s.depth ?? 1) && !it.skipped) {
+    s.items.push({ main: it.main, follow: true, q: it.eval.follow_up, type: "追问", focus: it.focus, at: Date.now() });
+  } else if (it.main + 1 < s.plan.length) {
+    s.items.push(Object.assign({ main: it.main + 1, at: Date.now() }, s.plan[it.main + 1]));
+  } else {
+    s.allAsked = true;
+  }
+}
+async function gradeAnswer(s, it, signal) {
+  if (!s.double) return normEval(await AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal }));
+  const [a, b] = await Promise.all([
+    AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal }),
+    AI.ask(MOCK_P.evaluate(s, it) + "\n（这是独立的第二次评分，请重新独立判断。）", { json: true, tier: "complex", signal }),
+  ]);
+  const ea = normEval(a), eb = normEval(b);
+  const avg = (x, y) => Math.round((x + y) / 2 * 2) / 2;
+  return Object.assign({}, ea, { score: avg(ea.score, eb.score), dims: Object.fromEntries(MOCK_DIMS.map(d => [d, avg(ea.dims[d], eb.dims[d])])), scores: [ea.score, eb.score], follow_up: ea.follow_up || eb.follow_up });
+}
+function mockErr(e, what) { return e && e.code === "cancelled" ? `已取消${what}。` : e && e.code ? aiErr(e) : `${what}失败：` + ((e && e.message) || e); }
+async function mockJob(sid, kind, idx, work, apply, fail) {
+  if (MOCK_JOBS[sid]) return;
+  const ctl = new AbortController();
+  MOCK_JOBS[sid] = { kind, idx, ctl };
+  mockRedraw(sid);
+  let res, err;
+  try { res = await work(MK.current(), ctl.signal); } catch (e) { err = e; }
+  delete MOCK_JOBS[sid];
+  const s = MK.current();
+  if (s && s.id === sid) { if (err) fail(s, err); else apply(s, res); MK.setCurrent(s); }
+  mockRedraw(sid);
+}
+function mockEvaluate(sid, idx) {
+  const answer = (MK.current().items[idx] || {}).answer;
+  return mockJob(sid, "eval", idx, (s, sig) => gradeAnswer(s, s.items[idx], sig),
+    (s, ev) => { const it = s.items[idx]; if (!it || it.answer !== answer) return; it.eval = ev; delete it.evalError; if (idx === s.items.length - 1) mockAdvance(s, it); },
+    (s, e) => { const it = s.items[idx]; if (it && it.answer === answer) it.evalError = mockErr(e, "评估"); });
+}
+function mockHint(sid, idx) {
+  return mockJob(sid, "hint", idx, async (s, sig) => (await AI.ask(MOCK_P.hint(s, s.items[idx]), { tier: "default", signal: sig })).text.trim(),
+    (s, t) => { if (s.items[idx]) { s.items[idx].hint = t; delete s.items[idx].hintError; } },
+    (s, e) => { if (s.items[idx]) s.items[idx].hintError = mockErr(e, "提示"); });
+}
+function mockReport(sid) {
+  return mockJob(sid, "report", -1, async (s, sig) => normReport(await AI.ask(MOCK_P.report(s), { json: true, tier: "complex", signal: sig }), s),
+    (s, r) => { s.report = r; s.phase = "report"; delete s.reportError; MK.saveSession(s); },
+    (s, e) => { s.reportError = mockErr(e, "生成报告"); });
+}
+
 function drawInterview(root, s) {
   root.textContent = "";
+  MOCK_VIEW = { sid: s.id, root };
+  const job = MOCK_JOBS[s.id];
+  const it = s.items[s.items.length - 1];
+  const idx = s.items.length - 1;
+  const evalPending = job && job.kind === "eval";
+  const needsEval = it && it.answer && !it.eval && !it.skipped && !evalPending;
+  const done = s.items.filter(x => x.eval);
+
   const log = h("div", { class: "mock-log" });
   const board = h("aside", { class: "panel mock-board" });
-  const ta = h("textarea", { id: "mock-answer", class: "mock-input", placeholder: "像真实面试一样回答：先说结论，再展开。（Cmd/Ctrl + Enter 提交）" });
+  const ta = h("textarea", { id: "mock-answer", class: "mock-input", placeholder: "像真实面试一样回答：先说结论，再展开。代码可以用 ``` 包起来。（Cmd/Ctrl + Enter 提交）" });
   const timer = h("span", { class: "small faint num" });
   const sendBtn = h("button", { class: "btn primary", type: "button" }, "提交回答");
   const hintBtn = h("button", { class: "btn sm", type: "button" }, "我卡住了，给点提示");
   const skipBtn = h("button", { class: "btn ghost sm", type: "button" }, "跳过这题");
   const voiceBtn = h("button", { class: "btn sm", type: "button", hidden: !SpeechRec }, "语音回答");
   const endBtn = h("button", { class: "btn sm", type: "button" }, "结束面试，出报告");
-  const status = h("div", { class: "small muted" });
+  const quitBtn = h("button", { class: "btn ghost sm", type: "button" }, "放弃本场");
+  const status = h("div", { class: "small muted mock-status" });
   const composer = h("div", { class: "mock-composer" }, ta, h("div", { class: "spread" }, h("div", { class: "row" }, sendBtn, voiceBtn, hintBtn, skipBtn), timer), status);
   root.append(
-    h("div", { class: "spread" }, h("div", null, h("div", { class: "eyebrow" }, `模拟面试 · ${s.role} · ${MOCK_TYPES.find(t => t[0] === s.type)[1]}`), h("h1", { style: "font-size:24px" }, "面试进行中")), endBtn),
+    h("div", { class: "spread" }, h("div", null, h("div", { class: "eyebrow" }, `模拟面试 · ${s.role} · ${(MOCK_TYPES.find(t => t[0] === s.type) || [, ""])[1]}`), h("h1", { style: "font-size:24px" }, "面试进行中")), h("div", { class: "row" }, quitBtn, endBtn)),
     h("div", { class: "mock-grid" }, h("div", { class: "stack", style: "gap:14px;min-width:0" }, log, composer), board));
 
-  let started = Date.now();
-  const tick = setInterval(() => { const sec = Math.round((Date.now() - started) / 1000); timer.textContent = `本题用时 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }, 1000);
-  onLeave(() => clearInterval(tick));
+  // 记录
+  log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, "面试官"), h("div", null, s.opening)));
+  s.items.forEach((x, i) => {
+    log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, x.follow ? "面试官 · 追问" : `面试官 · 第 ${x.main + 1} 题`, x.type && !x.follow ? h("span", { class: "tag" }, x.type) : ""), h("div", null, x.q),
+      x.hint ? h("div", { class: "small muted", style: "margin-top:6px" }, "提示：" + x.hint) : ""));
+    if (x.answer || x.skipped) log.append(h("div", { class: "mock-msg me" }, h("div", { class: "mock-who" }, "我"), h("div", { style: "white-space:pre-wrap" }, x.skipped ? "（跳过）" : x.answer)));
+    if (x.eval) log.append(evalCard(x, i >= s.items.length - 2));
+  });
+  // 记分板
+  const avg = done.length ? Math.round(done.reduce((a, x) => a + Number(x.eval.score || 0), 0) / done.length * 10) / 10 : null;
+  board.append(h("div", { class: "eyebrow" }, "目前得分"),
+    h("div", { class: "mock-avg num" }, avg == null ? "—" : String(avg), h("span", null, " / 10")),
+    h("div", { class: "small faint" }, `主问题 ${Math.min(s.plan.length, (it || { main: 0 }).main + 1)} / ${s.plan.length}　已评分 ${done.length} 题`),
+    done.length ? h("div", { class: "stack", style: "gap:6px" }, MOCK_DIMS.map(d => meter(d, done.reduce((a, x) => a + Number((x.eval.dims || {})[d] || 0), 0) / done.length))) : h("p", { class: "small muted" }, "答完第一题后这里显示各维度平均分。"),
+    h("div", { class: "sep" }),
+    h("ol", { class: "mock-qlist" }, s.plan.map((q, i) => {
+      const its = s.items.filter(x => x.main === i && x.eval);
+      return h("li", { class: i === (it || {}).main ? "on" : "" }, h("span", null, clip(q.q, 34)), h("b", { class: "num" }, its.length ? its[0].eval.score : ""));
+    })),
+    h("p", { class: "small faint" }, "分数是 AI 估算的，仅供参考。可以随时离开这个页面，进度和正在进行的评分都会保留。"));
 
-  function drawLog() {
-    log.textContent = "";
-    log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, "面试官"), h("div", null, s.opening)));
-    s.items.forEach((it, i) => {
-      log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, it.follow ? "面试官 · 追问" : `面试官 · 第 ${it.main + 1} 题`, it.type && !it.follow ? h("span", { class: "tag" }, it.type) : ""), h("div", null, it.q),
-        it.hint ? h("div", { class: "small muted", style: "margin-top:6px" }, "提示：" + it.hint) : ""));
-      if (it.answer || it.skipped) log.append(h("div", { class: "mock-msg me" }, h("div", { class: "mock-who" }, "我"), h("div", { style: "white-space:pre-wrap" }, it.skipped ? "（跳过）" : it.answer)));
-      if (it.eval) log.append(evalCard(it, i === s.items.length - 1 || i === s.items.length - 2));
-    });
-    drawBoard();
-  }
-  function drawBoard() {
-    const done = s.items.filter(x => x.eval);
-    const avg = done.length ? Math.round(done.reduce((a, x) => a + Number(x.eval.score || 0), 0) / done.length * 10) / 10 : null;
-    board.textContent = "";
-    board.append(h("div", { class: "eyebrow" }, "目前得分"),
-      h("div", { class: "mock-avg num" }, avg == null ? "—" : String(avg), h("span", null, " / 10")),
-      h("div", { class: "small faint" }, `主问题 ${Math.min(s.plan.length, (s.items[s.items.length - 1] || { main: 0 }).main + 1)} / ${s.plan.length}　已评分 ${done.length} 题`),
-      done.length ? h("div", { class: "stack", style: "gap:6px" }, MOCK_DIMS.map(d => meter(d, done.reduce((a, x) => a + Number((x.eval.dims || {})[d] || 0), 0) / done.length))) : h("p", { class: "small muted" }, "答完第一题后这里显示各维度平均分。"),
-      h("div", { class: "sep" }),
-      h("ol", { class: "mock-qlist" }, s.plan.map((q, i) => {
-        const its = s.items.filter(x => x.main === i && x.eval);
-        const sc = its.length ? its[0].eval.score : null;
-        return h("li", { class: i === (s.items[s.items.length - 1] || {}).main ? "on" : "" }, h("span", null, clip(q.q, 34)), h("b", { class: "num" }, sc == null ? "" : sc));
-      })));
-  }
-  function currentItem() { return s.items[s.items.length - 1]; }
-  function ask() {
-    const it = currentItem();
-    started = Date.now();
-    drawLog();
+  // 计时
+  const started = (it && it.at) || s.at;
+  const tick = () => { const sec = Math.max(0, Math.round((Date.now() - started) / 1000)); timer.textContent = `本题用时 ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; };
+  tick();
+  const tk = setInterval(tick, 1000);
+  onLeave(() => clearInterval(tk));
+
+  // 按状态决定输入区
+  const lock = b => { [sendBtn, hintBtn, skipBtn, voiceBtn].forEach(x => { x.disabled = b; }); ta.disabled = b; };
+  const cancelBtn = () => h("button", { class: "btn ghost sm", type: "button", onclick: () => { const j = MOCK_JOBS[s.id]; if (j) j.ctl.abort(); } }, "取消");
+  if (evalPending) {
+    lock(true); endBtn.disabled = true;
+    status.append(h("span", { class: "thinking" }, "面试官在评估你的回答……（大约 15–40 秒，可以先去别的页面，回来结果还在）"), " ", cancelBtn());
+  } else if (needsEval) {
+    lock(true);
+    status.append(h("span", { style: "color:var(--amber)" }, it.evalError || "这条回答还没评分（可能刚才刷新了页面或网络中断）。"), " ",
+      h("button", { class: "btn primary sm", type: "button", onclick: () => mockEvaluate(s.id, idx) }, "重新评估"), " ",
+      h("button", { class: "btn sm", type: "button", onclick: () => { const cur = MK.current(); const x = cur.items[idx]; LS.set("tiyan:mock:draft", x.answer); x.answer = ""; delete x.evalError; MK.setCurrent(cur); drawMockRoot(root); } }, "修改回答"));
+  } else if (job && job.kind === "report") {
+    lock(true); endBtn.disabled = true;
+    status.append(h("span", { class: "thinking" }, "面试官在写复盘报告……（大约 20–60 秒）"), " ", cancelBtn());
+  } else if (s.allAsked) {
+    lock(true);
+    status.append(s.reportError ? h("span", { style: "color:var(--red)" }, s.reportError + " ") : "问题都问完了。", h("button", { class: "btn primary sm", type: "button", onclick: () => mockReport(s.id) }, s.reportError ? "重新生成复盘报告" : "生成复盘报告"));
+  } else {
     ta.value = LS.get("tiyan:mock:draft", "") || "";
-    ta.focus();
-    log.lastChild && log.lastChild.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    if (s.speak && TTS.ok) TTS.speak(it.q);
+    if (job && job.kind === "hint") { hintBtn.disabled = true; status.append(h("span", { class: "thinking" }, "面试官在想怎么提示你……")); }
+    else if (it.hintError) status.append(h("span", { style: "color:var(--red)" }, it.hintError));
+    if (s.reportError) status.append(h("span", { style: "color:var(--red)" }, " " + s.reportError));
+    requestAnimationFrame(() => { ta.focus(); });
   }
-  function save() { MK.setCurrent(s); }
+  // 新问题出现时朗读一次
+  if (it && !it.answer && !it.skipped && s.speak && TTS.ok && s.spoken !== idx) { s.spoken = idx; MK.setCurrent(s); TTS.speak(it.q); }
+  requestAnimationFrame(() => { const last = log.lastChild; if (last) last.scrollIntoView({ block: "nearest" }); });
+
   ta.addEventListener("input", () => LS.set("tiyan:mock:draft", ta.value));
   ta.addEventListener("keydown", e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); } });
-  const busy = b => { [sendBtn, hintBtn, skipBtn, endBtn].forEach(x => { x.disabled = b; }); ta.disabled = b; };
-
-  async function submit() {
-    const it = currentItem();
+  function submit() {
+    if (ta.disabled) return;
     const ans = ta.value.trim();
     if (ans.length < 4) { status.textContent = "先写下你的回答（哪怕只有思路）。"; return; }
-    stopVoice();
-    TTS.stop();
-    it.answer = ans; it.seconds = Math.round((Date.now() - started) / 1000);
+    stopVoice(); TTS.stop();
+    const cur = MK.current();
+    const x = cur.items[cur.items.length - 1];
+    x.answer = ans; x.seconds = Math.round((Date.now() - (x.at || cur.at)) / 1000); delete x.evalError;
     LS.del("tiyan:mock:draft");
-    save(); drawLog();
-    busy(true);
-    status.textContent = "面试官在评估你的回答……（大约 15–40 秒）";
-    MOCKCTL = new AbortController();
-    try {
-      if (s.double) {
-        const sig = MOCKCTL.signal;
-        const [a, b] = await Promise.all([AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal: sig }), AI.ask(MOCK_P.evaluate(s, it) + "\n（这是独立的第二次评分，请重新独立判断。）", { json: true, tier: "complex", signal: sig })]);
-        const ea = normEval(a), eb = normEval(b);
-        const avg = (x, y) => Math.round((x + y) / 2 * 2) / 2;
-        it.eval = Object.assign({}, ea, { score: avg(ea.score, eb.score), dims: Object.fromEntries(MOCK_DIMS.map(d => [d, avg(ea.dims[d], eb.dims[d])])), scores: [ea.score, eb.score], follow_up: ea.follow_up || eb.follow_up });
-      } else {
-        const ev = await AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal: MOCKCTL.signal });
-        it.eval = normEval(ev);
-      }
-      status.textContent = "";
-      next(it);
-    } catch (e) {
-      status.textContent = e && e.code ? aiErr(e) : "评估失败：" + ((e && e.message) || e);
-      if (e && e.code === "cancelled") return;
-      status.append(" ", h("button", { class: "btn sm", type: "button", onclick: () => { ta.value = it.answer; it.answer = ""; save(); submit(); } }, "重新评估"));
-    } finally { busy(false); MOCKCTL = null; save(); }
-  }
-  function next(it) {
-    const followCount = s.items.filter(x => x.main === it.main && x.follow).length;
-    if (it.eval && it.eval.follow_up && followCount < (s.depth ?? 1) && !it.skipped) {
-      s.items.push({ main: it.main, follow: true, q: it.eval.follow_up, type: "追问", focus: it.focus });
-    } else if (it.main + 1 < s.plan.length) {
-      s.items.push(Object.assign({ main: it.main + 1 }, s.plan[it.main + 1]));
-    } else {
-      save(); drawLog();
-      status.textContent = "";
-      status.append("问题都问完了。", h("button", { class: "btn primary sm", type: "button", onclick: finish }, "生成复盘报告"));
-      ta.disabled = true; sendBtn.disabled = true; hintBtn.disabled = true; skipBtn.disabled = true;
-      return;
-    }
-    save(); ask();
+    MK.setCurrent(cur);
+    mockEvaluate(cur.id, cur.items.length - 1);
   }
   sendBtn.addEventListener("click", submit);
-  skipBtn.addEventListener("click", () => { const it = currentItem(); it.skipped = true; it.answer = ""; LS.del("tiyan:mock:draft"); next(it); });
-  hintBtn.addEventListener("click", async () => {
-    const it = currentItem();
-    busy(true); status.textContent = "面试官在想怎么提示你……";
-    MOCKCTL = new AbortController();
-    try {
-      const r = await AI.ask(MOCK_P.hint(s, it), { tier: "default", signal: MOCKCTL.signal });
-      it.hint = r.text.trim(); save(); drawLog(); status.textContent = "";
-    } catch (e) { status.textContent = aiErr(e); }
-    finally { busy(false); MOCKCTL = null; ta.focus(); }
-  });
+  skipBtn.addEventListener("click", () => { const cur = MK.current(); const x = cur.items[cur.items.length - 1]; x.skipped = true; x.answer = ""; LS.del("tiyan:mock:draft"); mockAdvance(cur, x); MK.setCurrent(cur); drawMockRoot(root); });
+  hintBtn.addEventListener("click", () => mockHint(s.id, idx));
   voiceBtn.addEventListener("click", () => toggleVoice(ta, voiceBtn, status));
-  async function finish() {
-    if (!s.items.some(x => x.eval)) { MK.setCurrent(null); drawSetup(root); return; }
-    busy(true); status.textContent = "面试官在写复盘报告……（大约 20–60 秒）";
-    MOCKCTL = new AbortController();
-    try {
-      const r = await AI.ask(MOCK_P.report(s), { json: true, tier: "complex", signal: MOCKCTL.signal });
-      s.report = normReport(r, s);
-      s.phase = "report";
-      MK.saveSession(s); MK.setCurrent(s);
-      drawReport(root, s);
-    } catch (e) { status.textContent = e && e.code ? aiErr(e) : "生成报告失败：" + ((e && e.message) || e); busy(false); }
-    finally { MOCKCTL = null; }
-  }
-  endBtn.addEventListener("click", finish);
-  ask();
+  endBtn.addEventListener("click", () => {
+    if (!s.items.some(x => x.eval)) { toast("还没有评过分的回答：答完至少一题再出报告，或者点「放弃本场」"); return; }
+    mockReport(s.id);
+  });
+  let armed = false;
+  quitBtn.addEventListener("click", () => {
+    if (!armed) { armed = true; quitBtn.textContent = "确定放弃？这场不会保存"; quitBtn.classList.add("red"); setTimeout(() => { armed = false; quitBtn.textContent = "放弃本场"; quitBtn.classList.remove("red"); }, 4000); return; }
+    const j = MOCK_JOBS[s.id]; if (j) j.ctl.abort();
+    delete MOCK_JOBS[s.id];
+    TTS.stop(); stopVoice();
+    LS.del("tiyan:mock:draft");
+    MK.setCurrent(null);
+    toast("已放弃这场面试");
+    drawSetup(root);
+  });
 }
 
 function normEval(e) {
@@ -5345,7 +5432,7 @@ function viewLab({ id }) {
   });
   bodyAI.append(chat.el);
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   sw("desc");
   return h("div", { class: "ws" },
     h("div", { class: "ws-head" }, h("a", { class: "btn ghost sm", href: "#kb-labs" }, icon("back"), "实战列表"), h("h1", null, lab.title), h("span", { class: "lv " + lab.level }, LEVEL[lab.level] || lab.level)),
