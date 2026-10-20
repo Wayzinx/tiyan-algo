@@ -1,4 +1,7 @@
 // ---------- 对话组件：做题页、题型页、问老师页共用 ----------
+// 正在进行的对话请求：离开页面不中断，回来后新页面接着显示同一个回答
+const CHAT_JOBS = {};   // key → { text, views: Set, ctl, progress }
+const CHAT_LIVE = {};   // key → 当前页面上的 Chat 实例
 class Chat {
   constructor({ key, context, placeholder, actions, intro, images }) {
     this.key = key;
@@ -37,7 +40,7 @@ class Chat {
     });
     this.ta.addEventListener("input", () => { this.ta.style.height = "auto"; this.ta.style.height = Math.min(160, this.ta.scrollHeight + 2) + "px"; });
     this.sendBtn.addEventListener("click", () => this.submit());
-    this.stopBtn.addEventListener("click", () => { if (this.ctl) this.ctl.abort(); });
+    this.stopBtn.addEventListener("click", () => { const j = CHAT_JOBS[this.key]; if (j) j.ctl.abort(); });
     if (this.actEl) for (const a of this.actions) {
       const b = h("button", { class: "chip", type: "button", title: a.title || "" }, a.label);
       b.addEventListener("click", () => { if (!this.busy) a.run(this); });
@@ -46,6 +49,15 @@ class Chat {
     }
     if (!this.msgs.length && intro) this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), h("div", { class: "md muted" }, intro)));
     for (const m of this.msgs) this.renderMsg(m, false);
+    CHAT_LIVE[key] = this;
+    const job = CHAT_JOBS[key];
+    if (job) {                       // 上次离开时还在回答：接上
+      const view = this.renderMsg({ role: "assistant", content: "" }, true);
+      if (job.text) { view.status.hidden = true; renderMd(view.md, job.text); }
+      else if (job.progress) view.progress(job.progress);
+      job.views.add(view);
+      this.busy = true;
+    }
     this.sync();
   }
   sync() {
@@ -158,41 +170,64 @@ class Chat {
   }
   setBusy(b) { this.busy = b; this.sync(); }
   async send(prompt, o = {}) {
-    if (!AI.ok()) { toast(aiErr({ code: S.ai === "denied" ? "not_granted" : "unavailable" })); return null; }
-    if (this.busy) return null;
-    const userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
-    this.msgs.push(userMsg);
-    this.renderMsg(userMsg, false);
+    if (!AI.ok()) { toast(aiErr({ code: S.ai === "denied" ? "not_granted" : S.ai === "needkey" ? "need_key" : "unavailable" })); return null; }
+    if (this.busy || CHAT_JOBS[this.key]) return null;
+    const key = this.key, msgs = this.msgs;
+    let userMsg = o.retryOf;
+    if (!userMsg) {
+      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
+      msgs.push(userMsg);
+      this.renderMsg(userMsg, false);
+    }
     const aiMsg = { role: "assistant", content: "" };
     const view = this.renderMsg(aiMsg, true);
+    const job = CHAT_JOBS[key] = { text: "", views: new Set([view]), ctl: new AbortController(), progress: "" };
     this.setBusy(true);
-    const ctl = this.ctl = new AbortController();
     const turns = [{ role: "user", content: this.context() }];
-    for (const m of this.msgs.slice(-12)) if (m.content) turns.push({ role: m.role, content: clip(m.content, 6000) });
-    let latest = "", queued = false;
-    const paint = () => { queued = false; renderMd(view.md, latest); this.scroll(); };
-    let out = null;
+    for (const m of msgs.slice(-12)) if (m.content) turns.push({ role: m.role, content: clip(m.content, 6000) });
+    let queued = false;
+    const paint = () => { queued = false; for (const v of job.views) { v.status.hidden = true; renderMd(v.md, job.text); } const live = CHAT_LIVE[key]; if (live) live.scroll(); };
+    const jobView = { progress: t => { job.progress = t; for (const v of job.views) v.progress(t); } };
+    let out = null, failed = null, partial = "";
     try {
       const res = await AI.ask(turns, {
-        signal: ctl.signal, tier: o.tier, images: o.images || undefined,
-        tools: o.tools ? o.tools(view) : undefined,
-        onText: ({ text }) => { latest = text; view.status.hidden = true; if (!queued) { queued = true; requestAnimationFrame(paint); } },
+        signal: job.ctl.signal, tier: o.tier, images: o.images || undefined,
+        tools: o.tools ? o.tools(jobView) : undefined,
+        onText: ({ text }) => { job.text = text; if (!queued) { queued = true; requestAnimationFrame(paint); } },
       });
       aiMsg.content = res.text;
-      renderMd(view.md, res.text);
-      if (res.truncated) view.note("回答太长被截断了，可以说“接着讲”。");
-      this.msgs.push(aiMsg);
+      job.text = res.text;
+      paint();
+      if (res.truncated) for (const v of job.views) v.note("回答太长被截断了，可以说“接着讲”。");
+      msgs.push(aiMsg);
       out = res.text;
     } catch (e) {
-      const part = e && e.text;
-      if (part) { aiMsg.content = part; renderMd(view.md, part); this.msgs.push(aiMsg); }
-      const msg = aiErr(e);
-      view.note(msg || (part ? "已停止。" : "已停止。"));
+      partial = (e && e.text) || "";
+      failed = e;
+      if (partial) { aiMsg.content = partial; job.text = partial; paint(); msgs.push(aiMsg); }
     } finally {
-      view.done();
-      this.ctl = null;
-      this.setBusy(false);
-      this.scroll();
+      delete CHAT_JOBS[key];
+      for (const v of job.views) {
+        v.done();
+        if (failed) {
+          const msg = aiErr(failed) || "已停止。";
+          v.note(msg);
+          if (!partial || failed.code !== "cancelled") {
+            const retry = h("button", { class: "btn sm", type: "button" }, "重试");
+            retry.addEventListener("click", () => {
+              const live = CHAT_LIVE[key];
+              if (!live || live.busy) return;
+              const i = msgs.indexOf(aiMsg); if (i >= 0) msgs.splice(i, 1);
+              v.wrap.remove();
+              live.send(userMsg.content, Object.assign({}, o, { retryOf: userMsg }));
+            });
+            v.wrap.append(h("div", { class: "row" }, retry));
+          }
+        }
+      }
+      const live = CHAT_LIVE[key];
+      if (live) { live.setBusy(false); live.scroll(); }
+      if (this !== live) this.busy = false;
     }
     if (out && o.onDone) o.onDone(out);
     return out;

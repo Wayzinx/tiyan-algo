@@ -1,5 +1,5 @@
 // 离线缓存：页面走“网络优先”（有新版本就用新的），前端库和 Python 运行环境走“缓存优先”
-const VERSION = "tiyan-db9878753c";
+const VERSION = "tiyan-f9156dbc68";
 const STATIC = "tiyan-static-pyodide-0.27.7";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png",
   "./vendor/codemirror.min.js", "./vendor/python.min.js", "./vendor/runmode.min.js", "./vendor/matchbrackets.min.js",

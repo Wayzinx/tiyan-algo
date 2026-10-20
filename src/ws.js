@@ -56,7 +56,7 @@ function viewWorkspace({ id }) {
   if (!p) return h("div", { class: "page" }, h("h1", null, "没找到这道题"), h("p", { class: "muted" }, "它可能已经被删除了。"), h("a", { class: "btn", href: "#problems" }, "回到题库"));
   const W = S.ws = { pid: id, p, cm: null, last: null, used: { hint: false, sol: false }, aiHint: 0, redo: S.redo === id };
   S.redo = null;
-  onLeave(() => { if (S.ws === W) S.ws = null; if (W.chat && W.chat.ctl) W.chat.ctl.abort(); if (W.player) W.player.pause(); if (W.vizCtl) W.vizCtl.abort(); S.liveChats = []; });
+  onLeave(() => { if (S.ws === W) S.ws = null; if (W.chat && CHAT_LIVE[W.chat.key] === W.chat) delete CHAT_LIVE[W.chat.key]; if (W.player) W.player.pause(); S.liveChats = []; });
 
   // ----- 头部 -----
   const pill = h("span");

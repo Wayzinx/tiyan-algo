@@ -237,7 +237,7 @@ function viewPattern({ key }) {
     ],
   });
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   const first = ps.find(p => !p.custom);
   return h("div", { class: "page" },
     h("div", { class: "row small" }, h("a", { href: "#learn" }, "教程"), h("span", { class: "faint" }, "/"), h("span", { class: "muted" }, pt.name)),
@@ -461,7 +461,7 @@ function viewAsk() {
     ],
   });
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   // 导入题目
   const ta = h("textarea", { id: "import-text", placeholder: "粘贴题目原文：力扣、牛客、面经里的题都行。包含题意、示例、约束越完整越好。" });
   ta.value = S.importDraft || "";

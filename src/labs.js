@@ -179,7 +179,7 @@ function viewLab({ id }) {
   });
   bodyAI.append(chat.el);
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
   sw("desc");
   return h("div", { class: "ws" },
     h("div", { class: "ws-head" }, h("a", { class: "btn ghost sm", href: "#kb-labs" }, icon("back"), "实战列表"), h("h1", null, lab.title), h("span", { class: "lv " + lab.level }, LEVEL[lab.level] || lab.level)),

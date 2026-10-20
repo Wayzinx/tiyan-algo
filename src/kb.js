@@ -165,7 +165,7 @@ function viewCourse(cfg) {
     return rawSend(prompt, Object.assign({ tools: view => tools(view).concat(extra ? extra(view) : []) }, o));
   };
   S.liveChats = [chat];
-  onLeave(() => { S.liveChats = []; if (chat.ctl) chat.ctl.abort(); });
+  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; });
 
   // 左栏：目录
   const nav = h("nav", { class: "course-nav", "aria-label": cfg.title + "目录" });
