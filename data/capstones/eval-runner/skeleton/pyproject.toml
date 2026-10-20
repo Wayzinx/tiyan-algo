@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evalrunner"
+version = "0.1.0"
+description = "配置驱动的 Agent 评测 Runner"
+requires-python = ">=3.10"
+dependencies = [
+  "httpx",
+  "pydantic>=2",
+  "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+server = ["fastapi", "uvicorn"]
+
+[project.scripts]
+evalrun = "evalrunner.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

@@ -5,6 +5,7 @@ D = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, D)
 import harness
 REQ = ["id", "course", "title", "level", "desc", "starter", "tests", "hidden", "solution", "hints", "points"]
+REQ_T = ["id", "course", "title", "level", "desc", "starter", "impl", "mutants", "solution", "hints", "points"]
 def load(path):
     spec = importlib.util.spec_from_file_location(os.path.basename(path)[:-3], path)
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
@@ -15,6 +16,27 @@ for f in files:
     labs += load(f)
 for lab in labs:
     lid = lab.get("id", "?")
+    if lab.get("kind") == "tests":
+        miss = [k for k in REQ_T if not lab.get(k)]
+        if miss: errors.append(f"{lid} 缺字段 {miss}"); continue
+        if lid in ids: errors.append(f"{lid} id 重复")
+        ids.add(lid)
+        if not (5 <= len(lab["mutants"]) <= 10): errors.append(f"{lid} mutants 需要 5–10 个")
+        if any(not (m.get("name") and m.get("code") and m.get("desc") and m.get("hint")) for m in lab["mutants"]): errors.append(f"{lid} 每个 mutant 需要 name/code/desc/hint")
+        if len(lab["hints"]) != 3: errors.append(f"{lid} hints 需要 3 条")
+        mj = json.dumps(lab["mutants"])
+        r = json.loads(harness.run_testlab(lab["solution"], lab["impl"], mj))
+        if r["compile_error"]: errors.append(f"{lid} 参考测试无法运行：{r['compile_error']}"); continue
+        if r["baseline"]["passed"] != r["baseline"]["total"]: errors.append(f"{lid} 参考测试在正确实现上没全过：{[c for c in r['baseline']['cases'] if not c['pass']][:1]}"); continue
+        if r["killed"] != r["total"]: errors.append(f"{lid} 参考测试没杀死全部变异体：存活 {[m['name'] for m in r['mutants'] if not m['killed']]}")
+        for m in lab["mutants"]:
+            same = json.loads(harness.run_testlab(lab["solution"], m["code"], "[]"))
+            if same.get("baseline") and same["baseline"]["passed"] == same["baseline"]["total"] and not same["compile_error"]:
+                errors.append(f"{lid} 变异体 {m['name']} 和正确实现行为一样（参考测试测不出区别）")
+        s = json.loads(harness.run_testlab(lab["starter"], lab["impl"], mj))
+        if not s["compile_error"] and s["baseline"] and s["killed"] == s["total"]: errors.append(f"{lid} 起始测试就能杀死全部变异体，起始代码应该只留空壳")
+        lab["packages"] = lab.get("packages", [])
+        continue
     miss = [k for k in REQ if not lab.get(k)]
     if miss: errors.append(f"{lid} 缺字段 {miss}"); continue
     if lid in ids: errors.append(f"{lid} id 重复")
@@ -34,6 +56,7 @@ for lab in labs:
     s = json.loads(harness.run_lab(lab["starter"], lab["tests"]))
     if not s["compile_error"] and s["passed"] == s["total"]: errors.append(f"{lid} 起始代码直接就能通过可见测试，起始代码应该留空待实现")
     lab["numpy"] = bool(lab.get("numpy"))
+    lab["packages"] = sorted(set(lab.get("packages", []) + (["numpy"] if lab["numpy"] else [])))
 print("实战题:", len(labs), {c: sum(1 for l in labs if l.get("course") == c) for c in ("llm", "agent", "harness", "dev", "arch")})
 if errors:
     print("\n".join("ERROR " + e for e in errors)); sys.exit(1)

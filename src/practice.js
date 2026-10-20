@@ -26,7 +26,7 @@ const EX = {
   },
   today() { return LS.get("tiyan:ex:days", {})[new Date().toISOString().slice(0, 10)] || 0; },
 };
-function allSections() { return KNOW.flatMap(c => c.sections.map(s => Object.assign({ course: c.name, courseId: c.id }, s))); }
+function allSections() { return KNOW.flatMap(c => c.sections.map(s => Object.assign({}, s, { course: c.name, courseId: c.id }))); }
 // 题目统一编号：节 id + 题型 + 序号
 function exItems(s) {
   const out = [];
@@ -45,6 +45,7 @@ ${pts.length ? "【得分点】（每个得分点权重相同，满分 10 分；
 【参考${it.kind === "d" ? "要点" : "答案"}】${q.reference || q.a}
 【学习者的回答】
 ${clip(answer, 3000)}
+评分档位：9–10 要点全、原理准、有例子或数据；7–8.5 要点基本齐、个别不够深；5–6.5 方向对但缺关键要点；3–4.5 有错误或大部分缺失；0–2.5 基本没答或错误。
 要求：答非所问、只有空话、或者有事实错误要扣分，并在 feedback 里指出错在哪。
 只返回 JSON：{"score": 7, "hit": [0, 2], "partial": [1], "missed": [3], "feedback": "两三句点评：哪里好、缺了什么、哪里说错了", "better": "在学习者回答基础上改写得更好的版本，150–300 字，面试里能直接说出口"}
 （hit / partial / missed 是得分点的下标；没有得分点时都给空数组）`;
@@ -104,7 +105,7 @@ function writtenBlock(it, onDone) {
       const mark = (arr, i) => Array.isArray(arr) && arr.map(Number).includes(i);
       const better = h("div", { class: "md small" }); renderMd(better, String(g.better || ""));
       out.append(
-        h("div", { class: "row" }, h("span", { class: "mock-score num" }, String(score), h("small", null, " / 10")), h("span", { class: "pill " + cls }, band)),
+        h("div", { class: "row" }, h("span", { class: "mock-score num" }, String(score), h("small", null, " / 10")), h("span", { class: "pill " + cls }, band), h("span", { class: "small faint" }, "AI 估算，仅供参考")),
         g.feedback ? h("p", null, String(g.feedback)) : "",
         pts.length ? h("ul", { class: "ex-points" }, pts.map((p, i) => h("li", { class: mark(g.hit, i) ? "hit" : mark(g.partial, i) ? "part" : "miss" }, h("b", null, mark(g.hit, i) ? "答到" : mark(g.partial, i) ? "部分" : "缺失"), p))) : "",
         g.better ? h("details", { class: "qa", open: score < 8 }, h("summary", null, "更好的回答"), better) : "");

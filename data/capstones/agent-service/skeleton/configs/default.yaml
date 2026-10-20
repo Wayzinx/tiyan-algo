@@ -1,0 +1,6 @@
+model: fake
+base_url: https://example.invalid/v1
+timeout_seconds: 10
+max_retries: 2
+rate_limit_per_minute: 60
+trace_path: traces.jsonl

@@ -634,3 +634,19 @@ select.btn { padding-right: 8px; }
 .ex-points .hit b { color: var(--green); }
 .ex-points .part b { color: var(--amber); }
 .ex-points .miss b { color: var(--red); }
+.card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin: 10px 0; }
+.card-f { display: grid; gap: 4px; }
+
+/* ---------- 导航菜单（窄屏）与页脚 ---------- */
+.menu-btn { display: none; flex: none; }
+.site-foot { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 8px 40px; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); }
+.site-foot a { color: var(--ink-2); }
+.cap-row { grid-template-columns: 74px minmax(0, 1fr) 80px 64px 150px; }
+@media (max-width: 760px) {
+  .menu-btn { display: inline-flex; }
+  .topbar-in { position: relative; }
+  .nav { display: none; }
+  .nav.open { display: flex; flex-direction: column; position: absolute; top: var(--top); left: 0; right: 0; background: var(--paper); border-bottom: 1px solid var(--line); padding: 8px 16px 12px; box-shadow: var(--shadow); z-index: 40; gap: 2px; }
+  .nav.open a { padding: 10px 12px; }
+  .brand-mark { font-size: 24px; }
+}

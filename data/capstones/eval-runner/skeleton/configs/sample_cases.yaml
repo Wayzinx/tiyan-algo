@@ -1,0 +1,9 @@
+cases:
+  - id: demo-001
+    input: "请回答 1+1"
+    expected: "2"
+    scorers:
+      - type: contains
+    tags: [demo, math]
+    difficulty: easy
+    source: sample

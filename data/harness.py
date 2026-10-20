@@ -275,6 +275,122 @@ def run_lab(user_code, tests_code):
     return json.dumps(result, ensure_ascii=False)
 
 
+def _suite(impl_code, tests_code):
+    ns = {"__name__": "__impl__"}
+    exec(_src(impl_code, "impl.py"), ns)
+    tns = dict(ns)
+    exec(_src(tests_code, "tests.py"), tns)
+    tests = [(k, v) for k, v in tns.items() if k.startswith("test_") and callable(v)]
+    cases = []
+    for name, fn in tests:
+        case = {"name": name, "doc": (fn.__doc__ or "").strip()}
+        try:
+            fn()
+            case["pass"] = True
+        except AssertionError as e:
+            case["pass"] = False
+            case["error"] = "断言失败" + (("：" + str(e)) if str(e) else "") + _where(e)
+        except Exception as e:
+            case["pass"] = False
+            case["error"] = _fmt_exc(e)
+        cases.append(case)
+    return cases
+
+
+def run_testlab(user_tests, impl_code, mutants_json):
+    """「你来写测试」：学习者的测试先要在正确实现上全部通过，再看能杀死多少个变异体（故意埋 bug 的实现）。"""
+    mutants = json.loads(mutants_json)
+    result = {"compile_error": None, "baseline": None, "mutants": [], "killed": 0, "total": len(mutants), "stdout": ""}
+    buf = io.StringIO()
+    old_out = sys.stdout
+    sys.stdout = buf
+    try:
+        try:
+            base = _suite(impl_code, user_tests)
+        except Exception as e:
+            result["compile_error"] = "测试代码无法运行：" + _fmt_exc(e)
+            return json.dumps(result, ensure_ascii=False)
+        if not base:
+            result["compile_error"] = "没有找到 test_ 开头的测试函数"
+            return json.dumps(result, ensure_ascii=False)
+        result["baseline"] = {"cases": base, "passed": sum(c["pass"] for c in base), "total": len(base)}
+        if result["baseline"]["passed"] != len(base):
+            return json.dumps(result, ensure_ascii=False)
+        for m in mutants:
+            try:
+                cases = _suite(m["code"], user_tests)
+                failed = [c["name"] for c in cases if not c["pass"]]
+            except Exception as e:
+                failed = ["（加载失败）"]
+            killed = bool(failed)
+            result["mutants"].append({"name": m["name"], "killed": killed, "by": failed[:3], "desc": m.get("desc", "") if killed else "", "hint": "" if killed else m.get("hint", "")})
+            result["killed"] += killed
+    finally:
+        sys.stdout = old_out
+        out = buf.getvalue()
+        result["stdout"] = out if len(out) < 4000 else out[:4000] + "\n…（输出过长已截断）"
+    return json.dumps(result, ensure_ascii=False)
+
+
+def run_perf(user_code, ref_code, spec_json, gen_code, seed):
+    """性能检查：用同一个大输入，在同一台机器上比较学习者代码和参考解的耗时（比值与机器快慢无关）。"""
+    spec = json.loads(spec_json)
+    out = {"error": None}
+    try:
+        gns = {}
+        exec(compile(gen_code, "perf_gen.py", "exec"), gns)
+        args = gns["gen_large"](random.Random(int(seed)))
+        def timed(code, name, reps):
+            ns = {"__name__": name}
+            ns.update({k: v for k, v in globals().items() if not k.startswith("_")})
+            exec(_src(code, name + ".py"), ns)
+            f = _get_callable(ns, spec["fn"])
+            best, res = None, None
+            for _ in range(reps):
+                t = time.perf_counter()
+                res = _call(f, args, spec.get("types"), spec.get("ret_type"))
+                d = (time.perf_counter() - t) * 1000
+                best = d if best is None else min(best, d)
+            return best, res
+        ref_ms, ref_res = timed(ref_code, "reference", 2)
+        user_ms, user_res = timed(user_code, "solution", 1)
+        out.update({"ref_ms": round(ref_ms, 1), "user_ms": round(user_ms, 1), "ratio": round(user_ms / max(ref_ms, 1.0), 1),
+                    "same": _same(user_res, ref_res, spec.get("compare", "exact"))})
+    except RecursionError:
+        out["error"] = "RecursionError: 大输入下递归太深，考虑改成迭代或递推"
+    except Exception as e:
+        out["error"] = _fmt_exc(e)
+    return json.dumps(out, ensure_ascii=False)
+
+
+def run_perf_one(code, name, spec_json, gen_code, seed):
+    """性能检查的一半：用固定种子生成大输入，跑一遍并返回耗时和结果摘要（参考解和学习者代码分两次调用，方便按参考解耗时设超时）。"""
+    import hashlib
+    spec = json.loads(spec_json)
+    out = {"error": None}
+    try:
+        gns = {}
+        exec(compile(gen_code, "perf_gen.py", "exec"), gns)
+        args = gns["gen_large"](random.Random(int(seed)))
+        ns = {"__name__": name}
+        ns.update({k: v for k, v in globals().items() if not k.startswith("_")})
+        exec(_src(code, name + ".py"), ns)
+        f = _get_callable(ns, spec["fn"])
+        best, res = None, None
+        for _ in range(2 if name == "reference" else 1):
+            t = time.perf_counter()
+            res = _call(f, args, spec.get("types"), spec.get("ret_type"))
+            d = (time.perf_counter() - t) * 1000
+            best = d if best is None else min(best, d)
+        out["ms"] = round(best, 1)
+        out["digest"] = hashlib.md5(json.dumps(_norm(res, spec.get("compare", "exact")), sort_keys=True).encode()).hexdigest()
+    except RecursionError:
+        out["error"] = "RecursionError: 大输入下递归太深，考虑改成迭代或递推"
+    except Exception as e:
+        out["error"] = _fmt_exc(e)
+    return json.dumps(out, ensure_ascii=False)
+
+
 def _where(e):
     tb = [fr for fr in traceback.extract_tb(e.__traceback__) if fr.filename == "tests.py"]
     if not tb:
@@ -290,7 +406,7 @@ def _src(code, name):
 
 def _fmt_exc(e):
     tb = traceback.extract_tb(e.__traceback__)
-    lines = [fr for fr in tb if fr.filename in ("solution.py", "snippet.py", "reference.py", "tests.py")]
+    lines = [fr for fr in tb if fr.filename in ("solution.py", "snippet.py", "reference.py", "tests.py", "impl.py")]
     where = ""
     if lines:
         fr = lines[-1]

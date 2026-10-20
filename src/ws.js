@@ -138,10 +138,16 @@ function viewWorkspace({ id }) {
         r = await Py.json("run_tests", [code, specOf(p, tests)], all ? 12000 : 8000);
       }
     } catch (e) { err = e && e.code ? aiErr(e) : (e && e.message) || String(e); }
-    runBtn.disabled = subBtn.disabled = false;
     W.last = { all, result: r, error: err, code, aiJudged };
+    if (r && r.ok && all && !aiJudged && p.perf && p.solution) {
+      results.textContent = "";
+      results.append(h("div", { class: "results-h" }, h("span", { class: "thinking" }, "用例全部通过，正在做性能检查：用一组大输入和参考解比耗时……")));
+      W.last.perf = await perfCheck(p, code);
+    }
+    runBtn.disabled = subBtn.disabled = false;
     showResults(W.last);
-    if (r && !r.compile_error && all && !aiJudged) await recordSubmit(r, code);
+    const perfOk = !W.last.perf || perfPass(W.last.perf);
+    if (r && !r.compile_error && all && !aiJudged) await recordSubmit(Object.assign({}, r, { ok: r.ok && perfOk }), code);
     else if (r && all && aiJudged && r.ok) await recordSubmit(r, code);
     return W.last;
   }
@@ -172,13 +178,17 @@ function viewWorkspace({ id }) {
     }
     const slow = r.cases.filter(c => c.ms > 1000).length;
     const total = r.cases.reduce((s, c) => s + (c.ms || 0), 0);
+    const perf = last.perf;
+    const perfBad = perf && !perfPass(perf);
     results.append(h("div", { class: "results-h" },
-      h("b", { class: r.ok ? "ok" : "bad" }, r.ok ? (last.all ? "全部通过" : "样例通过") : `通过 ${r.passed} / ${r.total}`),
+      h("b", { class: r.ok && !perfBad ? "ok" : "bad" }, r.ok ? (last.all ? (perfBad ? "答案都对，但性能没过关" : "全部通过") : "样例通过") : `通过 ${r.passed} / ${r.total}`),
+      p.oracle ? h("span", { class: "tag", title: "标准答案已用独立的暴力解在随机输入上交叉验证" }, "答案已交叉验证") : "",
       h("span", { class: "small faint num" }, `${last.all ? "全部用例" : "样例"} · ${Math.round(total)} ms`),
       last.aiJudged ? h("span", { class: "pill trying" }, "AI 推演，非真实运行") : "",
       slow ? h("span", { class: "pill trying" }, `${slow} 个用例超过 1 秒，复杂度可能偏高`) : "",
       r.ok && !last.all ? h("button", { class: "btn primary sm", type: "button", onclick: () => run(true) }, "提交全部用例") : ""));
-    if (r.ok && last.all) {
+    if (perf) results.append(perfLine(perf));
+    if (r.ok && last.all && !perfBad) {
       const st = h("div", { class: "stamp go", "aria-hidden": "true" }, "过");
       right.append(st);
       results.append(recordPanel());
@@ -654,4 +664,31 @@ function treeSvg(values, hl) {
   for (const n of nodes) for (const c of [n.l, n.r]) if (c) svg += `<line x1="${px(n)}" y1="${py(n)}" x2="${px(c)}" y2="${py(c)}"/>`;
   for (const n of nodes) svg += `<circle cx="${px(n)}" cy="${py(n)}" r="17" class="${hl.includes(n.i) ? "hl" : ""}"/><text x="${px(n)}" y="${py(n)}">${esc(clip(fmtVal(n.v), 4))}</text>`;
   return h("div", { html: svg + "</svg>" });
+}
+
+// 性能检查：同一台机器上和参考解比耗时，比值和机器快慢无关
+function perfPass(pf) { return !pf.error && pf.same !== false && !(pf.ratio > 8 && pf.user_ms > 400); }
+function perfLine(pf) {
+  if (pf.error) return h("div", { class: "callout", style: "margin:10px 14px" }, h("b", null, "性能检查没过："), pf.error);
+  if (pf.same === false) return h("div", { class: "callout", style: "margin:10px 14px" }, h("b", null, "大输入下答案不对："), "你的代码在大规模输入上的结果和参考解不一致，可能有溢出、边界或递归深度问题。");
+  const ok = perfPass(pf);
+  return h("div", { class: "callout" + (ok ? " blue" : ""), style: "margin:10px 14px" }, h("b", null, ok ? "性能检查通过：" : "性能检查没过："),
+    `大输入下你的代码 ${pf.user_ms} ms，参考解 ${pf.ref_ms} ms（${pf.ratio} 倍）。`, ok ? "" : "比参考解慢太多，复杂度很可能高一个量级，面试官会要求优化。可以点「AI 批改」看看瓶颈在哪。");
+}
+
+async function perfCheck(p, code) {
+  const seed = String(Date.now() % 100000), spec = specOf(p, []);
+  let ref;
+  try { ref = await Py.json("run_perf_one", [p.solution, "reference", spec, p.perf, seed], 20000); }
+  catch (e) { return null; }                      // 参考解都跑不完，就不做性能判断
+  if (ref.error) return null;
+  const limit = Math.max(3000, Math.min(20000, ref.ms * 25 + 1500));
+  try {
+    const u = await Py.json("run_perf_one", [code, "solution", spec, p.perf, seed], limit);
+    if (u.error) return { error: u.error };
+    return { user_ms: u.ms, ref_ms: ref.ms, ratio: Math.round(u.ms / Math.max(ref.ms, 1) * 10) / 10, same: u.digest === ref.digest };
+  } catch (e) {
+    if (e.timeout) return { error: `大输入下运行超过 ${Math.round(limit / 1000)} 秒被终止（参考解只要 ${ref.ms} ms）：复杂度很可能高了一个量级` };
+    return { error: e.message || String(e) };
+  }
 }

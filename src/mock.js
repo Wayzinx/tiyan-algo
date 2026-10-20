@@ -8,7 +8,15 @@ const MOCK_TYPES = [
   ["basics", "基础知识", "岗位相关的原理和高频基础题，尽量结合候选人项目里用到的技术来问"],
   ["scenario", "场景设计", "给出贴近岗位的具体业务场景，让候选人设计方案并讲清取舍"],
   ["behavior", "行为面试", "沟通、协作、冲突、失败经历、成长与主动性，用 STAR 方式追问细节"],
+  ["design", "系统设计", "给出贴近岗位的系统设计题（如设计一个某场景的 Agent、设计一个 Agent 评测平台），候选人写出方案：需求澄清、指标、架构、关键组件、数据与评测、风险与取舍、演进"],
+  ["coding", "手写代码", "和岗位相关的小编程题（如工具调用循环、带退避的重试、评测指标计算、日志解析），候选人在回答里写 Python 代码，并说明复杂度、边界和测试思路"],
 ];
+const MOCK_RUBRIC = `评分档位（每个维度和总分都按这个档位打，再按难度要求校正）：
+- 9–10：超出该难度的预期。结论清楚，原理准确，有具体数据和验证方法，主动讲取舍和风险，经得起追问。
+- 7–8.5：达到预期。要点基本完整、正确，有一定细节，个别地方深度或数据不够。
+- 5–6.5：勉强及格。方向对，但关键要点缺失或停留在概念，缺少细节、数据或验证。
+- 3–4.5：明显不足。有错误、答非所问或只有空话，需要提示才能继续。
+- 0–2.5：没有回答，或基本错误。`;
 const MOCK_DIMS = ["准确性", "完整度", "结构", "深度", "表达"];
 const MK = {
   cfg() { return Object.assign({ role: MOCK_ROLES[0], jd: "", type: "mixed", count: 6, level: "中等", speak: false }, LS.get("tiyan:mock:cfg", {})); },
@@ -21,6 +29,8 @@ const MK = {
     LS.set("tiyan:mock:sessions", list.slice(-30));
   },
   current() { return LS.get("tiyan:mock:current", null); },
+  cards() { return LS.get("tiyan:mock:cards", []); },
+  saveCards(c) { LS.set("tiyan:mock:cards", c); },
   setCurrent(s) { if (s) LS.set("tiyan:mock:current", s); else LS.del("tiyan:mock:current"); },
 };
 
@@ -67,6 +77,15 @@ function relevantMaterial(session, q, limit = 6000) {
   return out || text.slice(0, limit);
 }
 function roleLine(s) { return s.role === "自定义岗位" ? "（岗位见 JD）" : s.role; }
+const CARD_FIELDS = [["name", "项目名"], ["background", "背景与目标"], ["role", "我的角色与职责"], ["actions", "关键动作 / 方案"], ["results", "量化结果（数据口径）"], ["tradeoffs", "关键取舍"], ["validation", "怎么验证的"], ["reflection", "问题与反思"]];
+function cardsText(cards) {
+  return (cards || []).map((c, i) => `【项目卡 ${i + 1}：${c.name || "未命名"}】\n` + CARD_FIELDS.slice(1).map(([k, t]) => c[k] ? `${t}：${c[k]}` : "").filter(Boolean).join("\n")).join("\n\n");
+}
+function materialsFor(s, q, limit) {
+  const cards = cardsText(s.cards);
+  const rest = Math.max(1500, limit - cards.length);
+  return (cards ? cards + "\n\n" : "") + relevantMaterial(s, q, rest);
+}
 
 const MOCK_P = {
   plan: s => `你是一位资深技术面试官，正在面试应聘「${roleLine(s)}」的候选人。${s.jd ? "\n岗位 JD：\n" + clip(s.jd, 3000) : ""}
@@ -79,16 +98,21 @@ const MOCK_P = {
 - 没有材料时，按岗位通用的高频题来出。
 只返回 JSON：{"opening": "面试官开场白（1–2 句，口语化）", "questions": [{"q": "问题（口语化，像真人面试官在问）", "type": "项目深挖 | 基础知识 | 场景设计 | 行为", "focus": "考察点（一句话）", "source": "依据材料哪一部分，没有就写 通用"}]}
 
-【候选人材料】
-${clip(s.resume || "（候选人没有提供材料）", 14000)}`,
+【候选人的项目卡】（最重要的出题依据）
+${cardsText(s.cards) || "（没有项目卡）"}
 
-  evaluate: (s, item) => `你是资深技术面试官，在面试「${roleLine(s)}」。请评估候选人对这道题的回答，严格但有建设性。
+【候选人材料】
+${clip(s.resume || "（候选人没有提供材料）", 12000)}`,
+
+  evaluate: (s, item) => `你是资深技术面试官，在面试「${roleLine(s)}」，按「${s.level}」级别候选人的标准评分。请评估候选人对这道题的回答，严格但有建设性。
 【题目】${item.q}（类型：${item.type || "综合"}；考察点：${item.focus || "未注明"}）
 【候选人的回答】
 ${clip(item.answer, 4000)}
 【之前的问答】${s.items.filter(x => x !== item && x.eval).map((x, i) => `\n${i + 1}. ${clip(x.q, 60)} —— ${x.eval.score} 分`).join("") || "无"}
-【候选人材料（用来核对事实、找出回答里没讲到的亮点）】
-${relevantMaterial(s, item.q + "\n" + item.answer)}
+【候选人材料与项目卡（用来核对事实、找出回答里没讲到的亮点）】
+${materialsFor(s, item.q + "\n" + item.answer, 7000)}
+
+${MOCK_RUBRIC}
 
 评分（每项 0–10，可以用 0.5）：
 - 准确性：事实和原理是否正确；
@@ -96,12 +120,12 @@ ${relevantMaterial(s, item.q + "\n" + item.answer)}
 - 结构：是否结论先行、分点清楚（项目和行为题看 STAR）；
 - 深度：是否讲到原理、取舍、数据和验证方法，而不只是描述做了什么；
 - 表达：是否简洁具体、像面试里能说出口的话。
-总分 score 是综合判断（0–10），不是简单平均；回答很短、答非所问或明显错误时要给低分。
+总分 score 是综合判断（0–10），不是简单平均；回答很短、答非所问或明显错误时要给低分。代码题还要看正确性、边界和复杂度；设计题看需求澄清、架构合理性、指标和取舍。
 knowledge 从下面的站内小节里挑最相关的 id 填进 section，没有合适的就写空字符串。
 站内小节：
 ${knowList()}
 
-只返回 JSON：{"score": 7.5, "dims": {"准确性": 8, "完整度": 7, "结构": 6, "深度": 7, "表达": 8}, "verdict": "一句话评价", "strengths": ["做得好的地方"], "issues": ["具体问题：缺了什么、哪里不准、哪里啰嗦"], "better_answer": "优化后的示范回答：Markdown，尽量用候选人自己的项目和数据，面试里能直接说出口，200–400 字", "knowledge": [{"topic": "需要补充的知识点", "why": "为什么需要", "section": "站内小节 id 或空字符串"}], "follow_up": "需要追问时写一个追问问题；回答已经很好或没有追问价值就写空字符串"}`,
+只返回 JSON：{"score": 7.5, "dims": {"准确性": 8, "完整度": 7, "结构": 6, "深度": 7, "表达": 8}, "verdict": "一句话评价", "strengths": ["做得好的地方"], "issues": ["具体问题：缺了什么、哪里不准、哪里啰嗦"], "better_answer": "优化后的示范回答：Markdown，尽量用候选人自己的项目和数据，面试里能直接说出口，200–400 字", "knowledge": [{"topic": "需要补充的知识点", "why": "为什么需要", "section": "站内小节 id 或空字符串"}], "follow_up": "需要追问时写一个追问问题（往原理、实现细节、数据口径、故障排查或取舍方向深挖，不要重复已经问过的）；回答已经很好或没有追问价值就写空字符串"}`,
 
   hint: (s, item) => `你是面试官，候选人在这道题上卡住了：「${item.q}」（考察点：${item.focus || "未注明"}）。
 请给一个提示：只点方向——一个答题框架（比如“先讲背景，再讲方案，最后讲效果和数据”）加 1–2 个关键词，不要给出完整答案。控制在 80 字以内，直接对候选人说。
@@ -174,14 +198,16 @@ function drawSetup(root, presetFocus, preset) {
   const countSel = h("select", { id: "mock-count", class: "btn sm" }, [4, 6, 8, 10].map(n => h("option", { value: n, selected: n === Number(cfg.count) }, `${n} 道主问题`)));
   const levelSel = h("select", { id: "mock-level", class: "btn sm" }, ["基础", "中等", "资深"].map(l => h("option", { value: l, selected: l === cfg.level }, `难度：${l}`)));
   const speak = h("input", { type: "checkbox", id: "mock-speak", checked: !!cfg.speak && TTS.ok, disabled: !TTS.ok });
+  const depthSel = h("select", { id: "mock-depth", class: "btn sm", title: "回答不够深时，面试官对同一道题最多追问几层" }, [0, 1, 2, 3].map(n => h("option", { value: n, selected: n === Number(cfg.depth ?? 2) }, n ? `每题最多追问 ${n} 层` : "不追问")));
+  const dbl = h("input", { type: "checkbox", id: "mock-double", checked: !!cfg.double });
   const status = h("div", { class: "small muted" });
   const startBtn = h("button", { class: "btn primary", type: "button" }, "开始面试");
   startBtn.addEventListener("click", async () => {
     if (!AI.ok()) { status.textContent = aiErr({ code: S.ai === "needkey" ? "need_key" : "unavailable" }); if (S.ai === "needkey") openKeyDialog(); return; }
-    const c = { role: role.value, jd: jd.value.trim(), type, count: Number(countSel.value), level: levelSel.value, speak: speak.checked };
+    const c = { role: role.value, jd: jd.value.trim(), type, count: Number(countSel.value), level: levelSel.value, speak: speak.checked, depth: Number(depthSel.value), double: dbl.checked };
     MK.saveCfg(c);
     LS.set("tiyan:mock:resume", resume.value);
-    const s = Object.assign({ id: "m" + Date.now().toString(36), at: Date.now(), phase: "plan", resume: resume.value.trim(), items: [], idx: 0, focus: presetFocus || "" }, c);
+    const s = Object.assign({ id: "m" + Date.now().toString(36), at: Date.now(), phase: "plan", resume: resume.value.trim(), cards: MK.cards(), items: [], idx: 0, focus: presetFocus || "" }, c);
     startBtn.disabled = true;
     status.textContent = "面试官正在看你的材料、准备问题……（大约 20–60 秒）";
     MOCKCTL = new AbortController();
@@ -210,15 +236,72 @@ function drawSetup(root, presetFocus, preset) {
         h("div", { class: "panel-h" }, h("h2", null, "你的材料"), counter),
         resume,
         h("div", { class: "row" }, h("label", { class: "file-pick" }, "或导入 PDF / Word（.docx）/ .md / .txt", file)), fileStatus,
+        redactPanel(resume, () => { LS.set("tiyan:mock:resume", resume.value); count(); }),
         h("p", { class: "small faint" }, "文件在你的浏览器里本地解析，不会上传；材料只保存在这个浏览器里。面试时，相关内容会发给 DeepSeek 用来出题和评分。")),
       h("section", { class: "panel" },
         h("h2", null, "这一场怎么面"),
         h("div", { class: "row" }, role, jdToggle), jd,
         h("div", { class: "stack", style: "gap:6px" }, typeSeg, typeDesc),
-        h("div", { class: "row" }, countSel, levelSel),
+        h("div", { class: "row" }, countSel, levelSel, depthSel),
         h("label", { class: "row small", style: "gap:6px" }, speak, TTS.ok ? "面试官朗读问题" : "这个浏览器不支持朗读"),
+        h("label", { class: "row small", style: "gap:6px" }, dbl, "每题评两次取平均（更稳定，耗时和费用翻倍）"),
+        h("details", { class: "qa" }, h("summary", null, "评分标准"), h("div", { class: "md small" }, ...MOCK_RUBRIC.split("\n").map(l => h("div", null, l)))),
+        h("p", { class: "small faint" }, "分数是 AI 估算的，只能当参考：同一个回答多次评分可能有 1 分左右的波动。"),
         h("div", { class: "row" }, startBtn), status)),
+    cardsPanel(resume),
     hist.length ? historyPanel(root, hist) : "");
+}
+
+// ----- 项目卡：把项目讲成结构化的证据（背景、角色、动作、量化结果、取舍、验证、反思） -----
+function cardsPanel(resumeTA) {
+  const box = h("div", { class: "stack", style: "gap:10px" });
+  const status = h("span", { class: "small muted" });
+  const draw = () => {
+    box.textContent = "";
+    const cards = MK.cards();
+    if (!cards.length) box.append(h("p", { class: "small muted" }, "还没有项目卡。项目卡会作为面试官出题的主要依据，比整段简历更容易被深挖到点子上。"));
+    cards.forEach((c, i) => {
+      const det = h("details", { class: "qa card-edit", open: !c.name });
+      const del = h("button", { class: "btn ghost sm", type: "button" }, "删除");
+      del.addEventListener("click", e => { e.preventDefault(); const cs = MK.cards(); cs.splice(i, 1); MK.saveCards(cs); draw(); });
+      det.append(h("summary", null, c.name || "新项目卡", h("span", { class: "small faint" }, `　${CARD_FIELDS.filter(([k]) => c[k]).length}/${CARD_FIELDS.length} 项已填`)));
+      const grid = h("div", { class: "card-grid" });
+      for (const [k, t] of CARD_FIELDS) {
+        const el = h(k === "name" ? "input" : "textarea", { id: `card-${c.id}-${k}`, class: "mock-input", style: k === "name" ? "min-height:0;padding:7px 10px" : "min-height:64px", placeholder: t + (k === "results" ? "：写清数字和口径，比如“采纳率 70%（人工抽检 200 条）”" : "") });
+        el.value = c[k] || "";
+        el.addEventListener("input", () => { const cs = MK.cards(); cs[i][k] = el.value; MK.saveCards(cs); if (k === "name") det.querySelector("summary").firstChild.textContent = el.value || "新项目卡"; });
+        grid.append(h("label", { class: "card-f" }, h("span", { class: "small faint" }, t), el));
+      }
+      det.append(grid, h("div", { class: "row" }, del));
+      box.append(det);
+    });
+  };
+  draw();
+  const add = h("button", { class: "btn sm", type: "button" }, "新增项目卡");
+  add.addEventListener("click", () => { const cs = MK.cards(); cs.push({ id: "c" + Date.now().toString(36) }); MK.saveCards(cs); draw(); });
+  const ai = h("button", { class: "btn sm", type: "button" }, "让 AI 从材料里整理项目卡");
+  ai.addEventListener("click", async () => {
+    const text = resumeTA.value.trim();
+    if (text.length < 50) { status.textContent = "先在上面填好材料。"; return; }
+    if (!AI.ok()) { status.textContent = aiErr({ code: S.ai === "needkey" ? "need_key" : "unavailable" }); return; }
+    ai.disabled = true; status.textContent = "AI 在整理……（大约 20–40 秒）";
+    try {
+      const r = await AI.ask(`从下面的候选人材料里整理出项目卡（最多 5 个最重要的项目）。字段：name 项目名、background 背景与目标、role 我的角色与职责、actions 关键动作 / 方案、results 量化结果（写清口径）、tradeoffs 关键取舍、validation 怎么验证的、reflection 问题与反思。
+规则：只用材料里写到的事实，不要编造；材料没写的字段写成“（待补充：应该写什么）”，比如 results 没有数字就写“（待补充：上线后的采纳率 / 节省人力，口径是什么）”。
+只返回 JSON：{"cards": [{"name": "", "background": "", "role": "", "actions": "", "results": "", "tradeoffs": "", "validation": "", "reflection": ""}]}
+
+【候选人材料】
+${clip(text, 14000)}`, { json: true, tier: "default" });
+      const got = (r && Array.isArray(r.cards) ? r.cards : []).slice(0, 5).map(c => Object.assign({ id: "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }, Object.fromEntries(CARD_FIELDS.map(([k]) => [k, String((c && c[k]) || "")]))));
+      if (!got.length) throw new Error("没整理出项目");
+      MK.saveCards(MK.cards().concat(got)); draw();
+      status.textContent = `整理出 ${got.length} 张项目卡，请逐项检查、补上“待补充”的内容。`;
+    } catch (e) { status.textContent = e && e.code ? aiErr(e) : "整理失败：" + ((e && e.message) || e); }
+    finally { ai.disabled = false; }
+  });
+  return h("section", { class: "panel" },
+    h("div", { class: "panel-h" }, h("h2", null, "项目卡"), h("span", { class: "small faint" }, "背景 → 角色 → 动作 → 量化结果 → 取舍 → 验证 → 反思")),
+    box, h("div", { class: "row" }, add, ai, status));
 }
 
 function historyPanel(root, hist) {
@@ -274,7 +357,7 @@ function drawInterview(root, s) {
     log.textContent = "";
     log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, "面试官"), h("div", null, s.opening)));
     s.items.forEach((it, i) => {
-      log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, it.follow ? "面试官 · 追问" : `面试官 · 第 ${it.main + 1} 题`, it.type ? h("span", { class: "tag" }, it.type) : ""), h("div", null, it.q),
+      log.append(h("div", { class: "mock-msg ask" }, h("div", { class: "mock-who" }, it.follow ? "面试官 · 追问" : `面试官 · 第 ${it.main + 1} 题`, it.type && !it.follow ? h("span", { class: "tag" }, it.type) : ""), h("div", null, it.q),
         it.hint ? h("div", { class: "small muted", style: "margin-top:6px" }, "提示：" + it.hint) : ""));
       if (it.answer || it.skipped) log.append(h("div", { class: "mock-msg me" }, h("div", { class: "mock-who" }, "我"), h("div", { style: "white-space:pre-wrap" }, it.skipped ? "（跳过）" : it.answer)));
       if (it.eval) log.append(evalCard(it, i === s.items.length - 1 || i === s.items.length - 2));
@@ -324,8 +407,16 @@ function drawInterview(root, s) {
     status.textContent = "面试官在评估你的回答……（大约 15–40 秒）";
     MOCKCTL = new AbortController();
     try {
-      const ev = await AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal: MOCKCTL.signal });
-      it.eval = normEval(ev);
+      if (s.double) {
+        const sig = MOCKCTL.signal;
+        const [a, b] = await Promise.all([AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal: sig }), AI.ask(MOCK_P.evaluate(s, it) + "\n（这是独立的第二次评分，请重新独立判断。）", { json: true, tier: "complex", signal: sig })]);
+        const ea = normEval(a), eb = normEval(b);
+        const avg = (x, y) => Math.round((x + y) / 2 * 2) / 2;
+        it.eval = Object.assign({}, ea, { score: avg(ea.score, eb.score), dims: Object.fromEntries(MOCK_DIMS.map(d => [d, avg(ea.dims[d], eb.dims[d])])), scores: [ea.score, eb.score], follow_up: ea.follow_up || eb.follow_up });
+      } else {
+        const ev = await AI.ask(MOCK_P.evaluate(s, it), { json: true, tier: "complex", signal: MOCKCTL.signal });
+        it.eval = normEval(ev);
+      }
       status.textContent = "";
       next(it);
     } catch (e) {
@@ -336,7 +427,7 @@ function drawInterview(root, s) {
   }
   function next(it) {
     const followCount = s.items.filter(x => x.main === it.main && x.follow).length;
-    if (it.eval && it.eval.follow_up && followCount < 1 && !it.skipped) {
+    if (it.eval && it.eval.follow_up && followCount < (s.depth ?? 1) && !it.skipped) {
       s.items.push({ main: it.main, follow: true, q: it.eval.follow_up, type: "追问", focus: it.focus });
     } else if (it.main + 1 < s.plan.length) {
       s.items.push(Object.assign({ main: it.main + 1 }, s.plan[it.main + 1]));
@@ -411,7 +502,9 @@ function evalCard(it, open) {
   renderMd(better, e.better || "（没有示范回答）");
   const card = h("details", { class: "mock-eval", open });
   card.append(
-    h("summary", null, h("span", { class: "mock-score num" }, String(e.score), h("small", null, " / 10")), h("span", { class: "pill " + cls }, band), h("span", { class: "mock-verdict" }, e.verdict)),
+    h("summary", null, h("span", { class: "mock-score num" }, String(e.score), h("small", null, " / 10")), h("span", { class: "pill " + cls }, band), h("span", { class: "mock-verdict" }, e.verdict),
+      e.scores ? h("span", { class: "small " + (Math.abs(e.scores[0] - e.scores[1]) > 1.5 ? "" : "faint"), style: Math.abs(e.scores[0] - e.scores[1]) > 1.5 ? "color:var(--amber)" : "" }, `两次评分 ${e.scores.join(" / ")}${Math.abs(e.scores[0] - e.scores[1]) > 1.5 ? "，分歧较大" : ""}`) : "",
+      h("span", { class: "small faint" }, "AI 估算")),
     h("div", { class: "mock-eval-body" },
       h("div", { class: "stack", style: "gap:6px" }, MOCK_DIMS.map(d => meter(d, e.dims[d]))),
       e.strengths.length ? h("div", null, h("h3", null, "亮点"), h("ul", { class: "mock-ul good" }, e.strengths.map(x => h("li", null, x)))) : "",
@@ -431,6 +524,7 @@ function drawReport(root, s, fromHistory) {
   root.append(
     h("div", { class: "spread" }, h("div", null, h("div", { class: "eyebrow" }, `复盘报告 · ${s.role} · ${MOCK_TYPES.find(t => t[0] === s.type)[1]} · ${fmtDate(s.at)}`), h("h1", { style: "font-size:26px" }, r.level || "这场面试的复盘")),
       h("div", { class: "row" },
+        h("button", { class: "btn", type: "button", onclick: () => downloadFile(`模拟面试-${fmtDate(s.at)}-${s.role}.md`, sessionMarkdown(s), "text/markdown") }, "导出 Markdown"),
         h("button", { class: "btn", type: "button", onclick: () => { MK.setCurrent(null); drawSetup(root); } }, "回到设置"),
         h("button", { class: "btn primary", type: "button", onclick: () => { MK.setCurrent(null); drawSetup(root, r.weaknesses.slice(0, 3).join("；")); window.scrollTo(0, 0); } }, "针对薄弱点再来一轮"))),
     h("div", { class: "mock-grid" },
@@ -440,7 +534,8 @@ function drawReport(root, s, fromHistory) {
             h("div", null, h("div", { class: "small faint" }, "总分"), h("div", { class: "mock-hero-num num" }, String(r.overall), h("span", null, " / 10")), h("span", { class: "pill " + cls }, band)),
             h("div", { class: "stack", style: "gap:6px;flex:1;min-width:220px" }, MOCK_DIMS.map(d => meter(d, r.dims[d])))),
           r.summary ? h("p", null, r.summary) : "",
-          r.hire ? h("div", { class: "callout" }, h("b", null, "面试官的判断："), r.hire) : ""),
+          r.hire ? h("div", { class: "callout" }, h("b", null, "面试官的判断："), r.hire) : "",
+          h("p", { class: "small faint" }, `总分是各题分数的平均；所有分数和判断都是 AI 按评分标准估算的（难度：${s.level}${s.double ? "，每题评两次取平均" : ""}），只能当参考，不代表真实面试结果。`)),
         h("div", { class: "grid-2" },
           h("section", { class: "panel" }, h("h2", null, "优势"), h("ul", { class: "mock-ul good" }, r.strengths.map(x => h("li", null, x)))),
           h("section", { class: "panel" }, h("h2", null, "最需要改进"), h("ul", { class: "mock-ul bad" }, r.weaknesses.map(x => h("li", null, x))))),
@@ -481,4 +576,27 @@ function toggleVoice(ta, btn, status) {
   rec.onend = () => { if (REC === rec) { REC = null; btn.textContent = "语音回答"; } };
   try { rec.start(); REC = rec; btn.textContent = "停止语音"; status.textContent = "正在听……说完点“停止语音”，再检查一下文字。"; }
   catch (e) { status.textContent = "语音识别启动失败。"; }
+}
+
+function sessionMarkdown(s) {
+  const r = s.report || {};
+  const lines = [`# 模拟面试复盘：${s.role} · ${(MOCK_TYPES.find(t => t[0] === s.type) || [, ""])[1]}`, "", `- 时间：${new Date(s.at).toLocaleString("zh-CN")}`, `- 难度：${s.level}；追问深度：${s.depth ?? 1}；${s.double ? "每题评两次取平均" : "每题评一次"}`, `- 总分：${r.overall ?? "—"} / 10（AI 估算，仅供参考）`, ""];
+  if (r.level) lines.push(`## 整体`, "", r.level, "", r.summary || "", "", r.hire ? `面试官判断：${r.hire}` : "", "");
+  if (r.dims) lines.push("## 各维度", "", ...MOCK_DIMS.map(d => `- ${d}：${r.dims[d]}`), "");
+  if (r.strengths && r.strengths.length) lines.push("## 优势", "", ...r.strengths.map(x => "- " + x), "");
+  if (r.weaknesses && r.weaknesses.length) lines.push("## 最需要改进", "", ...r.weaknesses.map(x => "- " + x), "");
+  if (r.knowledge && r.knowledge.length) lines.push("## 要补的知识", "", ...r.knowledge.map(k => `- ${k.topic}${k.why ? "：" + k.why : ""}`), "");
+  if (r.next && r.next.length) lines.push("## 接下来怎么练", "", ...r.next.map((x, i) => `${i + 1}. ${x}`), "");
+  lines.push("## 逐题记录", "");
+  s.items.forEach(it => {
+    lines.push(`### ${it.follow ? "追问" : "第 " + (it.main + 1) + " 题"}：${it.q}`, "", "**我的回答**", "", it.skipped ? "（跳过）" : (it.answer || "（未作答）"), "");
+    if (it.eval) {
+      const e = it.eval;
+      lines.push(`**得分**：${e.score} / 10（${MOCK_DIMS.map(d => `${d} ${e.dims[d]}`).join("，")}）`, "", e.verdict ? `**评价**：${e.verdict}` : "", "");
+      if (e.strengths.length) lines.push("**亮点**", "", ...e.strengths.map(x => "- " + x), "");
+      if (e.issues.length) lines.push("**可以改进**", "", ...e.issues.map(x => "- " + x), "");
+      if (e.better) lines.push("**优化后的回答**", "", e.better, "");
+    }
+  });
+  return lines.filter((l, i, a) => !(l === "" && a[i - 1] === "")).join("\n");
 }

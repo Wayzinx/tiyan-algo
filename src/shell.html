@@ -29,16 +29,19 @@ html { color-scheme: light; }
       <span class="brand-mark">题<span class="eye">眼<svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M14 58 C 6 26, 52 4, 80 18 S 98 70, 66 88 S 8 90, 12 50 S 40 8, 62 12" fill="none" style="stroke:var(--red)" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg></span></span>
       <span class="brand-sub">算法陪练</span>
     </a>
+    <button class="btn sm menu-btn" id="menu-btn" type="button" aria-controls="nav" aria-expanded="false"><span aria-hidden="true">☰</span><span>菜单</span></button>
     <nav class="nav" id="nav" aria-label="主导航"></nav>
     <div class="status-chips" id="chips"></div>
   </div>
 </header>
 <main id="main"></main>
+<footer class="site-foot"><a href="#data">我的数据与隐私</a><span>·</span><a href="https://github.com/Wayzinx/tiyan-algo" target="_blank" rel="noopener">源代码</a><span>·</span><span>代码在浏览器里运行；AI 由 DeepSeek 提供，评分仅供参考</span></footer>
 <script type="application/json" id="problems-data">/*PROBLEMS*/</script>
 <script type="text/plain" id="harness-src">/*HARNESS*/</script>
 <script type="application/json" id="knowledge-data">/*KNOWLEDGE*/</script>
 <script type="application/json" id="python-data">/*PYTHON*/</script>
 <script type="application/json" id="labs-data">/*LABS*/</script>
+<script type="application/json" id="capstones-data">/*CAPSTONES*/</script>
 <script src="vendor/codemirror.min.js"></script>
 <script src="vendor/python.min.js"></script>
 <script src="vendor/runmode.min.js"></script>

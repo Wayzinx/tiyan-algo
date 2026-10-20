@@ -115,7 +115,7 @@ function noteChunks(d) {
 
 // ---------- 两个模块的数据整理 ----------
 function knowGroups() {
-  return KNOW.map(c => ({ id: c.id, name: c.name, blurb: c.blurb, sections: c.sections.map(s => Object.assign({ course: c.name, courseId: c.id }, s)) }));
+  return KNOW.map(c => ({ id: c.id, name: c.name, blurb: c.blurb, sections: c.sections.map(s => Object.assign({}, s, { course: c.name, courseId: c.id })) }));
 }
 function knowText(s) {
   return [`### ${s.title}`, s.summary, s.md, "要点：\n- " + (s.points || []).join("\n- "),

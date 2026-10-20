@@ -1,6 +1,6 @@
 # 题眼算法陪练
 
-AI 老师陪你刷 Python 算法题：13 个题型教程、47 道高频题（浏览器里用 Pyodide 真实判题）、AI 批改 / 找反例 / 思路→代码 / 出变体、动画讲解配语音、间隔复习。AI 由 DeepSeek 驱动，可以装成手机 / 电脑上的 App，离线也能刷题判题。
+AI 老师陪你刷 Python 算法题：13 个题型教程、47 道高频题（浏览器里用 Pyodide 真实判题）、AI 批改 / 找反例 / 思路→代码 / 出变体、动画讲解配语音、间隔复习。AI 由 DeepSeek 驱动，可以装成手机 / 电脑上的 App，离线也能刷题判题。另有两个按里程碑实现的项目实战（可部署的 Agent 服务、Agent 评测 Runner）。
 
 ## 两种用法
 
@@ -37,6 +37,8 @@ cd ~/tiyan-algo && node server.mjs                                         # 打
   - AI 知识（5 门课）：`k2/*.py` → `gen_knowledge2.py` → `knowledge.json`
   - 手写实战：`labs/*.py` → `gen_labs.py`（需要带 numpy 的 Python 3.12）→ `labs.json`
   - Python 刷题语法：`python_features.py` → `gen_python.py` → `python.json`
+  - 算法题独立校验：`oracles.py`（每题的暴力解 + 随机小输入 + 性能用的大输入），`gen.py` 会交叉验证参考解
+  - 项目实战：`capstones/<id>/meta.py`（里程碑说明）、`skeleton/`（公开的项目骨架，打包成 `public/capstones/<id>.zip`）、`reference/`（参考实现，只在本机，不提交）→ `gen_capstones.py` → `capstones.json`
 
 改了 `src/` 或 `data/problems.json` 之后运行 `python3 build.py` 重新生成页面。
 

@@ -2,5 +2,8 @@ __pycache__/
 .app-check.js
 .dev.vars
 .wrangler/
+**/__pycache__/
+**/.pytest_cache/
 data/.forbidden.txt
+data/capstones/*/reference/
 node_modules/

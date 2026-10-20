@@ -12,13 +12,13 @@ function viewLabList() {
   const groups = Object.keys(COURSE_NAME).map(c => [c, LABS.filter(l => l.course === c)]).filter(g => g[1].length);
   const passed = LABS.filter(l => (LABSTAT.get(l.id) || {}).passed).length;
   return h("div", { class: "stack", style: "gap:18px" },
-    h("p", { class: "small muted" }, `共 ${LABS.length} 题，已通过 ${passed} 题。每题有可见测试和隐藏测试；numpy 题第一次运行会加载 numpy（约 3MB）。`),
+    h("p", { class: "small muted" }, `共 ${LABS.length} 题，已通过 ${passed} 题。「写代码」题有可见和隐藏测试；「写测试」题反过来：你写测试，用故意埋了 bug 的实现（变异体）检验你的测试能抓到几个。需要 numpy / sqlite3 / yaml 的题第一次运行会自动加载对应的包。`),
     groups.map(([c, list]) => h("section", { class: "stack", style: "gap:8px" }, h("h2", null, COURSE_NAME[c]),
       h("div", { class: "plist" }, list.map(l => {
         const st = LABSTAT.get(l.id) || {};
         return h("a", { class: "prow", href: "#lab-" + l.id.replace(/^lab-/, "") },
           h("span", { class: "pill " + (st.passed ? "passed" : st.tried ? "trying" : "todo") }, st.passed ? "已通过" : st.tried ? "尝试中" : "未做"),
-          h("span", { class: "t" }, l.title, l.numpy ? h("small", null, "numpy") : ""),
+          h("span", { class: "t" }, l.title, l.kind === "tests" ? h("small", null, "写测试") : "", (l.packages || []).length ? h("small", null, l.packages.join(" ")) : (l.numpy ? h("small", null, "numpy") : "")),
           h("span", null, h("span", { class: "tag" }, COURSE_NAME[l.course])),
           h("span", { class: "lv " + l.level }, LEVEL[l.level] || l.level),
           h("span", { class: "small faint" }, (l.points || []).slice(0, 1).join("")));
@@ -37,11 +37,12 @@ function viewLab({ id }) {
   const lab = LABS.find(l => l.id === "lab-" + id);
   if (!lab) return h("div", { class: "page" }, h("h1", null, "没找到这道题"), h("a", { class: "btn", href: "#kb-labs" }, "回到实战列表"));
   const draftKey = "tiyan:lab:draft:" + lab.id;
+  const isTests = lab.kind === "tests";
   const W = { last: null, hintsShown: 0, aiHint: 0 };
   // 右：编辑器 + 结果
   const edWrap = h("div", { class: "ed-wrap" });
   const results = h("div", { class: "results" }, h("div", { class: "empty-results" }, "「运行测试」跑可见测试，「提交」跑全部测试（含隐藏）。代码在你的浏览器里运行。"));
-  const runBtn = h("button", { class: "btn sm", type: "button" }, icon("run"), "运行测试");
+  const runBtn = h("button", { class: "btn sm", type: "button" }, icon("run"), lab.kind === "tests" ? "在正确实现上运行" : "运行测试");
   const subBtn = h("button", { class: "btn primary sm", type: "button" }, icon("check"), "提交");
   const resetBtn = h("button", { class: "btn ghost sm", type: "button" }, "恢复起始代码");
   const right = h("div", { class: "ws-pane right", style: "position:relative" }, h("div", { class: "ed-bar" }, runBtn, subBtn, h("span", { class: "sp" }), resetBtn), edWrap, results);
@@ -66,13 +67,19 @@ function viewLab({ id }) {
     results.append(h("div", { class: "results-h" }, msg));
     let r = null, err = null;
     try {
-      if (lab.numpy && !Py.loaded.has("numpy")) { msg.textContent = "正在加载 numpy（第一次约 3MB）……"; await Py.loadPackage("numpy"); msg.textContent = "运行中……"; }
-      r = await Py.json("run_lab", [cm.getValue(), all ? lab.tests + "\n\n" + lab.hidden : lab.tests], 15000);
+      for (const pkg of (lab.packages || (lab.numpy ? ["numpy"] : []))) {
+        if (!Py.loaded.has(pkg)) { msg.textContent = `正在加载 ${pkg}（第一次需要下载）……`; await Py.loadPackage(pkg); }
+      }
+      msg.textContent = "运行中……";
+      if (isTests) r = await Py.json("run_testlab", [cm.getValue(), lab.impl, all ? JSON.stringify(lab.mutants) : "[]"], 20000);
+      else r = await Py.json("run_lab", [cm.getValue(), all ? lab.tests + "\n\n" + lab.hidden : lab.tests], 15000);
     } catch (e) { err = (e && e.message) || String(e); }
     runBtn.disabled = subBtn.disabled = false;
     W.last = { all, r, err, code: cm.getValue() };
-    LABSTAT.set(lab.id, { tried: true, passed: !!((LABSTAT.get(lab.id) || {}).passed || (all && r && !r.compile_error && r.passed === r.total)) });
-    show();
+    const okNow = isTests ? (all && r && !r.compile_error && r.baseline && r.baseline.passed === r.baseline.total && r.killed === r.total)
+      : (all && r && !r.compile_error && r.passed === r.total);
+    LABSTAT.set(lab.id, { tried: true, passed: !!((LABSTAT.get(lab.id) || {}).passed || okNow) });
+    if (isTests) showTests(); else show();
   }
   function show() {
     const { all, r, err } = W.last;
@@ -94,6 +101,26 @@ function viewLab({ id }) {
     }
     if (r.stdout) results.append(h("div", { class: "stdout" }, r.stdout));
   }
+  function showTests() {
+    const { all, r, err } = W.last;
+    results.textContent = "";
+    if (err) { results.append(h("div", { class: "results-h" }, h("b", { class: "bad" }, "没有跑完")), h("div", { class: "stdout", style: "color:var(--red)" }, err)); return; }
+    if (r.compile_error) { results.append(h("div", { class: "results-h" }, h("b", { class: "bad" }, "测试无法运行")), h("div", { class: "stdout", style: "color:var(--red)" }, r.compile_error)); return; }
+    const b = r.baseline;
+    const baseOk = b.passed === b.total;
+    if (!baseOk) results.append(h("div", { class: "results-h" }, h("b", { class: "bad" }, `你的测试在正确实现上没通过（${b.passed} / ${b.total}）`), h("span", { class: "small faint" }, "测试本身写错了：先修好它，再去抓 bug")));
+    else if (!all) results.append(h("div", { class: "results-h" }, h("b", { class: "ok" }, `在正确实现上全部通过（${b.total} 个测试）`), h("button", { class: "btn primary sm", type: "button", onclick: () => run(true) }, "提交：看能抓到几个 bug")));
+    else {
+      const full = r.killed === r.total;
+      results.append(h("div", { class: "results-h" }, h("b", { class: full ? "ok" : "bad" }, `抓到 ${r.killed} / ${r.total} 个 bug`), h("span", { class: "small faint" }, full ? "全部变异体都被你的测试杀死了" : "还有 bug 溜过去了，看下面的提示补测试")));
+      if (full) right.append(h("div", { class: "stamp go", "aria-hidden": "true" }, "过"));
+      for (const mu of r.mutants) results.append(h("details", { class: "case " + (mu.killed ? "pass" : "fail"), open: !mu.killed },
+        h("summary", null, h("span", { class: "dot" }), mu.killed ? "抓到了：" + mu.desc : "没抓到：" + mu.name),
+        h("div", { class: "case-body" }, mu.killed ? h("div", null, h("span", null, "失败的测试"), h("span", null, mu.by.join("、"))) : h("div", null, h("span", null, "提示"), h("span", null, mu.hint)))));
+    }
+    for (const c of b.cases) if (!c.pass) results.append(h("details", { class: "case fail", open: true }, h("summary", null, h("span", { class: "dot" }), c.doc || c.name), h("div", { class: "case-body" }, h("div", null, h("span", null, "原因"), h("span", { class: "err" }, c.error)))));
+    if (r.stdout) results.append(h("div", { class: "stdout" }, r.stdout));
+  }
   runBtn.addEventListener("click", () => run(false));
   subBtn.addEventListener("click", () => run(true));
 
@@ -105,7 +132,7 @@ function viewLab({ id }) {
   const sw = k => { $$(".tab", tabs).forEach(b => b.classList.toggle("on", b.dataset.k === k)); bodyDesc.hidden = k !== "desc"; bodyAI.hidden = k !== "ai"; };
   [["desc", "题目"], ["ai", "AI 老师"]].forEach(([k, t]) => { const b = h("button", { class: "tab", type: "button", "data-k": k }, t); b.addEventListener("click", () => sw(k)); tabs.append(b); });
   const desc = h("div", { class: "md" }); renderMd(desc, lab.desc);
-  const visTests = h("pre", { class: "example", style: "white-space:pre" }); highlightInto(visTests, lab.tests.trim());
+  const visTests = h("pre", { class: "example", style: "white-space:pre" }); highlightInto(visTests, (isTests ? lab.impl : lab.tests).trim());
   const ladder = h("div", { class: "hint-ladder" });
   const drawLadder = () => {
     ladder.textContent = "";
@@ -128,14 +155,16 @@ function viewLab({ id }) {
     h("div", { class: "row" }, h("span", { class: "tag" }, COURSE_NAME[lab.course]), h("span", { class: "lv " + lab.level }, LEVEL[lab.level] || lab.level), lab.numpy ? h("span", { class: "tag" }, "numpy") : ""),
     desc,
     lab.points && lab.points.length ? h("div", null, h("h3", null, "考察点"), h("ul", { class: "signals" }, lab.points.map(p => h("li", null, h("span", null, p))))) : "",
-    h("details", { class: "qa" }, h("summary", null, "可见测试代码"), visTests),
+    isTests ? h("div", { class: "stack" }, h("h3", null, "被测实现（这是正确版本）"), visTests, h("p", { class: "small muted" }, `提交时会用 ${lab.mutants.length} 个故意埋了 bug 的版本去跑你的测试。`)) : h("details", { class: "qa" }, h("summary", null, "可见测试代码"), visTests),
     h("div", { class: "stack" }, h("h3", null, "提示阶梯"), ladder),
     h("div", { class: "stack" }, h("h3", null, "参考实现"), sol)));
-  const ctx = () => [KNOW_TEACHER.split("\n")[0], "现在学习者在做一道「手写实战」编程题，你是他的编程老师：讲清为什么这么写，先引导再给代码。",
-    "【题目】" + lab.title + "\n" + lab.desc, "【可见测试】\n```python\n" + clip(lab.tests, 3000) + "\n```",
+  const ctx = () => [KNOW_TEACHER.split("\n")[0], isTests ? "现在学习者在做一道「你来写测试」题：他要为下面的正确实现写测试，用变异体检验测试质量。你是他的测试设计老师：引导他从等价类、边界、异常、状态和注入依赖等角度设计用例，不要直接给出能杀死全部变异体的完整测试。" : "现在学习者在做一道「手写实战」编程题，你是他的编程老师：讲清为什么这么写，先引导再给代码。",
+    "【题目】" + lab.title + "\n" + lab.desc, isTests ? "【被测实现】\n```python\n" + clip(lab.impl, 4000) + "\n```" : "【可见测试】\n```python\n" + clip(lab.tests, 3000) + "\n```",
     "【参考实现】（学习者没要求就不要贴完整代码）\n```python\n" + lab.solution + "\n```",
     "【学习者当前代码】\n```python\n" + numbered(cm.getValue()) + "\n```",
-    W.last ? "【最近一次运行】" + (W.last.err || (W.last.r.compile_error ? "无法运行：" + W.last.r.compile_error : `通过 ${W.last.r.passed}/${W.last.r.total}\n` + W.last.r.cases.filter(c => !c.pass).slice(0, 3).map(c => `- ${c.name}：${c.error}`).join("\n"))) : "【最近一次运行】还没运行。"].join("\n\n");
+    W.last ? "【最近一次运行】" + (W.last.err || (W.last.r.compile_error ? "无法运行：" + W.last.r.compile_error
+      : isTests ? `在正确实现上通过 ${W.last.r.baseline.passed}/${W.last.r.baseline.total}` + (W.last.all ? `；抓到 ${W.last.r.killed}/${W.last.r.total} 个变异体；没抓到的提示：` + W.last.r.mutants.filter(x => !x.killed).map(x => x.hint).join("；") : "")
+      : `通过 ${W.last.r.passed}/${W.last.r.total}\n` + W.last.r.cases.filter(c => !c.pass).slice(0, 3).map(c => `- ${c.name}：${c.error}`).join("\n"))) : "【最近一次运行】还没运行。"].join("\n\n");
   const chat = new Chat({
     key: "lab:" + lab.id, context: ctx,
     placeholder: "哪里不懂就问，比如“为什么工具报错要回填给模型？”",

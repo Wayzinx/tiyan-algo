@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["mock", "模拟面试"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["cap", "项目实战"], ["mock", "模拟面试"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -10,6 +10,9 @@ function parseRoute() {
   if (["learn", "problems", "review", "quiz", "ask", "kb", "py", "mock"].includes(t)) return { view: t };
   if (["kb-daily", "kb-labs", "kb-wrong"].includes(t)) return { view: "kb", sub: t };
   if (t.startsWith("lab-")) return { view: "lab", id: t.slice(4) };
+  if (t === "cap") return { view: "caps" };
+  if (t === "data") return { view: "data" };
+  if (t.startsWith("cap-")) { const [id, mid] = t.slice(4).split("--"); return { view: "cap", id, mid }; }
   return { view: "home" };
 }
 function go(hash) { if (location.hash === "#" + hash) render(); else location.hash = hash; }
@@ -48,9 +51,13 @@ function softRefresh() {
 function renderNav() {
   const nav = $("#nav");
   nav.textContent = "";
+  nav.classList.remove("open");
+  const mb = $("#menu-btn");
+  if (mb && !mb._wired) { mb._wired = true; mb.addEventListener("click", () => { nav.classList.toggle("open"); mb.setAttribute("aria-expanded", nav.classList.contains("open")); }); }
+  if (mb) { const cur = NAV.find(([k]) => S.route && (S.route.view === k || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps") || (k === "problems" && S.route.view === "ws") || (k === "learn" && S.route.view === "pattern"))); mb.lastChild.textContent = cur ? cur[1] : "菜单"; }
   const due = dueList().length;
   for (const [k, label] of NAV) {
-    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws") || (k === "kb" && S.route.view === "lab"));
+    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws") || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps"));
     nav.append(h("a", { href: "#" + k, class: on ? "on" : "" }, label, k === "review" && due ? h("span", { class: "badge num" }, due) : ""));
   }
 }
@@ -493,4 +500,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };

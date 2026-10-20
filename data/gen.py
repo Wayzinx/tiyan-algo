@@ -3,6 +3,16 @@ import json, sys
 sys.setrecursionlimit(10000)
 import harness
 from problems import PROBLEMS
+import random
+try:
+    from problems_extra import PROBLEMS_EXTRA
+    PROBLEMS = PROBLEMS + PROBLEMS_EXTRA
+except ImportError:
+    pass
+try:
+    from oracles import ORACLES          # 独立 oracle：暴力解 + 小输入生成器（+ 可选的大输入生成器，用于性能检查）
+except ImportError:
+    ORACLES = {}
 
 PATTERNS = {"hash", "two_pointers", "sliding_window", "prefix_sum", "binary_search", "mono_stack",
             "heap", "linked_list", "tree", "graph", "backtracking", "dp", "greedy"}
@@ -59,7 +69,36 @@ for p in PROBLEMS:
     size = len(json.dumps(spec["tests"]))
     if size > 25000:
         errors.append("%s 用例 JSON 太大 (%d 字节)，请缩小大用例" % (pid, size))
+    o = ORACLES.get(pid)
+    if not o:
+        errors.append("%s 缺少独立 oracle（oracles.py 里的 brute / gen_small）" % pid)
+    else:
+        try:
+            nb = dict(vars(harness)); exec(compile(o["brute"], "brute.py", "exec"), nb)
+            fb = harness._get_callable(nb, p["fn"])
+            nr = dict(vars(harness)); exec(compile(p["solution"], "ref.py", "exec"), nr)
+            fr = harness._get_callable(nr, p["fn"])
+            ng = {"random": random}; exec(compile(o["gen_small"], "gen.py", "exec"), ng)
+            rng = random.Random(20261021)
+            for t in range(150):
+                args = ng["gen_small"](rng)
+                a = harness._call(fr, args, types, p.get("ret_type"))
+                b = harness._call(fb, args, types, p.get("ret_type"))
+                if not harness._same(a, b, p.get("compare", "exact")):
+                    errors.append("%s 参考解和暴力解不一致：输入 %s 参考 %s 暴力 %s" % (pid, str(args)[:150], str(a)[:80], str(b)[:80])); break
+            if o.get("gen_large"):
+                nl = {"random": random}; exec(compile(o["gen_large"], "perf_gen.py", "exec"), nl)
+                import time as _t
+                big = nl["gen_large"](random.Random(1))
+                t0 = _t.perf_counter(); harness._call(fr, big, types, p.get("ret_type")); dt = _t.perf_counter() - t0
+                if dt > 2.0: errors.append("%s 大输入太大：参考解本地就要 %.1f 秒" % (pid, dt))
+                if dt < 0.01: errors.append("%s 大输入太小（参考解只要 %.1f ms），区分不出复杂度" % (pid, dt * 1000))
+        except Exception as e:
+            errors.append("%s oracle 运行失败：%r" % (pid, e))
     q = {k: p[k] for k in REQUIRED if k != "tests"}
+    if o and o.get("gen_large"):
+        q["perf"] = o["gen_large"]
+    q["oracle"] = bool(o)
     q.update({"types": types, "ret_type": p.get("ret_type"), "compare": p.get("compare", "exact"),
               "starter": starter(p), "tests": spec["tests"], "params": [list(x) for x in p["params"]]})
     out.append(q)

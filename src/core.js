@@ -610,7 +610,8 @@ function runBlock(last) {
   return `【最近一次运行】（${last.all ? "全部用例" : "样例"}，真实运行）通过 ${r.passed}/${r.total}` +
     (fails.length ? "\n失败的用例：\n" + fails.join("\n") : "") +
     (slow ? `\n有 ${slow} 个用例耗时超过 1 秒，复杂度可能偏高。` : "") +
-    (r.stdout ? "\nprint 输出：\n" + clip(r.stdout, 800) : "");
+    (r.stdout ? "\nprint 输出：\n" + clip(r.stdout, 800) : "") +
+    (last.perf ? (last.perf.error ? "\n性能检查：" + last.perf.error : `\n性能检查（大输入，同一台机器）：学习者 ${last.perf.user_ms} ms，参考解 ${last.perf.ref_ms} ms，${last.perf.ratio} 倍${last.perf.same === false ? "，而且结果不一致" : ""}`) : "");
 }
 
 // ---------- DeepSeek key 设置（直连模式） ----------
