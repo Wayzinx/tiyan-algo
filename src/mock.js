@@ -141,13 +141,24 @@ function drawSetup(root, presetFocus, preset) {
   const counter = h("span", { class: "small faint num" });
   const count = () => { counter.textContent = resume.value.trim() ? `${resume.value.trim().length} 字` : "还没有材料：面试官会按岗位通用题来问"; };
   count();
-  const file = h("input", { type: "file", id: "mock-file", accept: ".md,.markdown,.txt,text/plain,text/markdown" });
+  const file = h("input", { type: "file", id: "mock-file", multiple: true, accept: ".pdf,.docx,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" });
+  const fileStatus = h("span", { class: "small muted" });
   file.addEventListener("change", async () => {
-    const f = file.files && file.files[0];
-    if (!f) return;
-    resume.value = kbClean(await f.text());
-    LS.set("tiyan:mock:resume", resume.value); count(); file.value = "";
-    toast("已导入「" + f.name + "」");
+    const files = [...(file.files || [])];
+    file.value = "";
+    let added = 0;
+    for (const f of files) {
+      try {
+        const text = await readDocFile(f, t => { fileStatus.textContent = `「${f.name}」${t}`; });
+        const block = files.length > 1 || resume.value.trim() ? `# ${f.name}\n\n${text}` : text;
+        resume.value = resume.value.trim() ? resume.value.replace(/\s*$/, "") + "\n\n" + block : block;
+        added++;
+      } catch (e) { fileStatus.textContent = `「${f.name}」导入失败：${(e && e.message) || e}`; toast(fileStatus.textContent, 4000); }
+    }
+    if (added) {
+      LS.set("tiyan:mock:resume", resume.value); count();
+      fileStatus.textContent = `已导入 ${added} 个文件，请检查一下文字是否完整（PDF 的表格和多栏排版可能会错位）。`;
+    }
   });
   const role = h("select", { id: "mock-role", class: "btn sm" }, MOCK_ROLES.map(r => h("option", { value: r, selected: r === cfg.role }, r)));
   const jd = h("textarea", { id: "mock-jd", class: "mock-input", style: "min-height:70px", placeholder: "可选：粘贴岗位 JD，面试官会按 JD 的要求出题", hidden: cfg.role !== "自定义岗位" && !cfg.jd });
@@ -198,8 +209,8 @@ function drawSetup(root, presetFocus, preset) {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "你的材料"), counter),
         resume,
-        h("div", { class: "row" }, h("label", { class: "file-pick" }, "或导入 .md / .txt 文件", file)),
-        h("p", { class: "small faint" }, "材料只保存在这个浏览器里，不会上传到网站或代码仓库；面试时，相关内容会发给 DeepSeek 用来出题和评分。")),
+        h("div", { class: "row" }, h("label", { class: "file-pick" }, "或导入 PDF / Word（.docx）/ .md / .txt", file)), fileStatus,
+        h("p", { class: "small faint" }, "文件在你的浏览器里本地解析，不会上传；材料只保存在这个浏览器里。面试时，相关内容会发给 DeepSeek 用来出题和评分。")),
       h("section", { class: "panel" },
         h("h2", null, "这一场怎么面"),
         h("div", { class: "row" }, role, jdToggle), jd,

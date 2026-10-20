@@ -655,3 +655,59 @@ function openKeyDialog() {
   document.body.append(wrap);
   $("#ds-key", box).focus();
 }
+
+// ---------- 读取 PDF / Word / 文本文件：全部在浏览器本地解析，文件不上传 ----------
+const SCRIPT_LOADS = {};
+function loadScript(src) {
+  if (!SCRIPT_LOADS[src]) SCRIPT_LOADS[src] = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => res();
+    s.onerror = () => { delete SCRIPT_LOADS[src]; rej(new Error("解析器加载失败，检查网络后重试")); };
+    document.head.append(s);
+  });
+  return SCRIPT_LOADS[src];
+}
+async function readDocFile(file, step = () => {}) {
+  const name = (file.name || "").toLowerCase();
+  if (file.size > 20 * 1024 * 1024) throw new Error("文件超过 20MB，太大了");
+  if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    step("正在加载 PDF 解析器……");
+    await loadScript("vendor/pdfjs/pdf.min.js");
+    const lib = window.pdfjsLib;
+    lib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
+    const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), cMapUrl: "vendor/pdfjs/cmaps/", cMapPacked: true, isEvalSupported: false }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      step(`正在读取第 ${i} / ${pdf.numPages} 页……`);
+      const tc = await (await pdf.getPage(i)).getTextContent();
+      const lines = [];
+      let line = "", lastY = null;
+      for (const it of tc.items) {
+        if (typeof it.str !== "string") continue;
+        const y = Math.round(it.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 2 && line) { lines.push(line); line = ""; }
+        line += it.str;
+        lastY = y;
+        if (it.hasEOL) { lines.push(line); line = ""; lastY = null; }
+      }
+      if (line) lines.push(line);
+      pages.push(lines.map(s => s.replace(/\s+$/, "")).join("\n"));
+    }
+    // 部分 PDF 字体把常用汉字映射成外形相同的康熙部首字符（如 ⽤ ⽬ ⼀），这里统一还原成正常汉字
+    const text = pages.join("\n\n").replace(/[\u2E80-\u2EFF\u2F00-\u2FDF]/g, ch => ch.normalize("NFKC")).replace(/\n{3,}/g, "\n\n").trim();
+    if (text.replace(/\s/g, "").length < 30) throw new Error("这个 PDF 里几乎没有可提取的文字，可能是扫描件或图片。换成文字版 PDF，或者直接粘贴内容。");
+    return text;
+  }
+  if (name.endsWith(".docx")) {
+    step("正在加载 Word 解析器……");
+    await loadScript("vendor/mammoth.browser.min.js");
+    const r = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    const text = String(r.value || "").replace(/\n{3,}/g, "\n\n").trim();
+    if (text.length < 30) throw new Error("没从这个 Word 文件里读到文字。");
+    return text;
+  }
+  if (name.endsWith(".doc")) throw new Error("老版 .doc 格式读不了：在 Word / WPS 里另存为 .docx 或 PDF 再导入。");
+  if (/\.(pages|key|numbers|xlsx?|pptx?)$/.test(name)) throw new Error("这种格式读不了：导出成 PDF、.docx 或纯文本再导入。");
+  return kbClean(await file.text());
+}
