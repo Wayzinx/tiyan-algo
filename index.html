@@ -2167,6 +2167,62 @@ function openKeyDialog() {
   $("#ds-key", box).focus();
 }
 
+// ---------- 读取 PDF / Word / 文本文件：全部在浏览器本地解析，文件不上传 ----------
+const SCRIPT_LOADS = {};
+function loadScript(src) {
+  if (!SCRIPT_LOADS[src]) SCRIPT_LOADS[src] = new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => res();
+    s.onerror = () => { delete SCRIPT_LOADS[src]; rej(new Error("解析器加载失败，检查网络后重试")); };
+    document.head.append(s);
+  });
+  return SCRIPT_LOADS[src];
+}
+async function readDocFile(file, step = () => {}) {
+  const name = (file.name || "").toLowerCase();
+  if (file.size > 20 * 1024 * 1024) throw new Error("文件超过 20MB，太大了");
+  if (name.endsWith(".pdf") || file.type === "application/pdf") {
+    step("正在加载 PDF 解析器……");
+    await loadScript("vendor/pdfjs/pdf.min.js");
+    const lib = window.pdfjsLib;
+    lib.GlobalWorkerOptions.workerSrc = "vendor/pdfjs/pdf.worker.min.js";
+    const pdf = await lib.getDocument({ data: new Uint8Array(await file.arrayBuffer()), cMapUrl: "vendor/pdfjs/cmaps/", cMapPacked: true, isEvalSupported: false }).promise;
+    const pages = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      step(`正在读取第 ${i} / ${pdf.numPages} 页……`);
+      const tc = await (await pdf.getPage(i)).getTextContent();
+      const lines = [];
+      let line = "", lastY = null;
+      for (const it of tc.items) {
+        if (typeof it.str !== "string") continue;
+        const y = Math.round(it.transform[5]);
+        if (lastY !== null && Math.abs(y - lastY) > 2 && line) { lines.push(line); line = ""; }
+        line += it.str;
+        lastY = y;
+        if (it.hasEOL) { lines.push(line); line = ""; lastY = null; }
+      }
+      if (line) lines.push(line);
+      pages.push(lines.map(s => s.replace(/\s+$/, "")).join("\n"));
+    }
+    // 部分 PDF 字体把常用汉字映射成外形相同的康熙部首字符（如 ⽤ ⽬ ⼀），这里统一还原成正常汉字
+    const text = pages.join("\n\n").replace(/[\u2E80-\u2EFF\u2F00-\u2FDF]/g, ch => ch.normalize("NFKC")).replace(/\n{3,}/g, "\n\n").trim();
+    if (text.replace(/\s/g, "").length < 30) throw new Error("这个 PDF 里几乎没有可提取的文字，可能是扫描件或图片。换成文字版 PDF，或者直接粘贴内容。");
+    return text;
+  }
+  if (name.endsWith(".docx")) {
+    step("正在加载 Word 解析器……");
+    await loadScript("vendor/mammoth.browser.min.js");
+    const r = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    const text = String(r.value || "").replace(/\n{3,}/g, "\n\n").trim();
+    if (text.length < 30) throw new Error("没从这个 Word 文件里读到文字。");
+    return text;
+  }
+  if (name.endsWith(".doc")) throw new Error("老版 .doc 格式读不了：在 Word / WPS 里另存为 .docx 或 PDF 再导入。");
+  if (/\.(pages|key|numbers|xlsx?|pptx?)$/.test(name)) throw new Error("这种格式读不了：导出成 PDF、.docx 或纯文本再导入。");
+  return kbClean(await file.text());
+}
+
 // ---------- 对话组件：做题页、题型页、问老师页共用 ----------
 class Chat {
   constructor({ key, context, placeholder, actions, intro, images }) {
@@ -4216,13 +4272,24 @@ function drawSetup(root, presetFocus, preset) {
   const counter = h("span", { class: "small faint num" });
   const count = () => { counter.textContent = resume.value.trim() ? `${resume.value.trim().length} 字` : "还没有材料：面试官会按岗位通用题来问"; };
   count();
-  const file = h("input", { type: "file", id: "mock-file", accept: ".md,.markdown,.txt,text/plain,text/markdown" });
+  const file = h("input", { type: "file", id: "mock-file", multiple: true, accept: ".pdf,.docx,.md,.markdown,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" });
+  const fileStatus = h("span", { class: "small muted" });
   file.addEventListener("change", async () => {
-    const f = file.files && file.files[0];
-    if (!f) return;
-    resume.value = kbClean(await f.text());
-    LS.set("tiyan:mock:resume", resume.value); count(); file.value = "";
-    toast("已导入「" + f.name + "」");
+    const files = [...(file.files || [])];
+    file.value = "";
+    let added = 0;
+    for (const f of files) {
+      try {
+        const text = await readDocFile(f, t => { fileStatus.textContent = `「${f.name}」${t}`; });
+        const block = files.length > 1 || resume.value.trim() ? `# ${f.name}\n\n${text}` : text;
+        resume.value = resume.value.trim() ? resume.value.replace(/\s*$/, "") + "\n\n" + block : block;
+        added++;
+      } catch (e) { fileStatus.textContent = `「${f.name}」导入失败：${(e && e.message) || e}`; toast(fileStatus.textContent, 4000); }
+    }
+    if (added) {
+      LS.set("tiyan:mock:resume", resume.value); count();
+      fileStatus.textContent = `已导入 ${added} 个文件，请检查一下文字是否完整（PDF 的表格和多栏排版可能会错位）。`;
+    }
   });
   const role = h("select", { id: "mock-role", class: "btn sm" }, MOCK_ROLES.map(r => h("option", { value: r, selected: r === cfg.role }, r)));
   const jd = h("textarea", { id: "mock-jd", class: "mock-input", style: "min-height:70px", placeholder: "可选：粘贴岗位 JD，面试官会按 JD 的要求出题", hidden: cfg.role !== "自定义岗位" && !cfg.jd });
@@ -4273,8 +4340,8 @@ function drawSetup(root, presetFocus, preset) {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "你的材料"), counter),
         resume,
-        h("div", { class: "row" }, h("label", { class: "file-pick" }, "或导入 .md / .txt 文件", file)),
-        h("p", { class: "small faint" }, "材料只保存在这个浏览器里，不会上传到网站或代码仓库；面试时，相关内容会发给 DeepSeek 用来出题和评分。")),
+        h("div", { class: "row" }, h("label", { class: "file-pick" }, "或导入 PDF / Word（.docx）/ .md / .txt", file)), fileStatus,
+        h("p", { class: "small faint" }, "文件在你的浏览器里本地解析，不会上传；材料只保存在这个浏览器里。面试时，相关内容会发给 DeepSeek 用来出题和评分。")),
       h("section", { class: "panel" },
         h("h2", null, "这一场怎么面"),
         h("div", { class: "row" }, role, jdToggle), jd,
