@@ -11,7 +11,7 @@ def data(name, empty):
     if not os.path.exists(p): return empty
     return json.dumps(json.load(open(p, encoding="utf-8")), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 knowledge, python = data("knowledge.json", "[]"), data("python.json", '{"groups":[],"sections":[]}')
-js = "\n".join(r("src/" + f) for f in ["patterns.js", "core.js", "chat.js", "views.js", "ws.js", "kb.js", "boot.js"])
+js = "\n".join(r("src/" + f) for f in ["patterns.js", "core.js", "chat.js", "views.js", "ws.js", "kb.js", "mock.js", "boot.js"])
 assert "</script" not in js.lower() and "</script" not in harness
 out = (r("src/shell.html").replace("/*CM_CSS*/", r("src/cm.css")).replace("/*APP_CSS*/", r("src/style.css"))
        .replace("/*PROBLEMS*/", pj).replace("/*KNOWLEDGE*/", knowledge).replace("/*PYTHON*/", python).replace("/*HARNESS*/", harness).replace("/*APP_JS*/", js))

@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "题型教程"], ["py", "Python 语法"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题训练"], ["kb", "AI 知识"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["mock", "模拟面试"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -7,7 +7,7 @@ function parseRoute() {
   if (!t || t === "home") return { view: "home" };
   if (t.startsWith("t-")) return { view: "pattern", key: t.slice(2) };
   if (t.startsWith("p-")) return { view: "ws", id: t.slice(2) };
-  if (["learn", "problems", "review", "quiz", "ask", "kb", "py"].includes(t)) return { view: t };
+  if (["learn", "problems", "review", "quiz", "ask", "kb", "py", "mock"].includes(t)) return { view: t };
   return { view: "home" };
 }
 function go(hash) { if (location.hash === "#" + hash) render(); else location.hash = hash; }
@@ -132,7 +132,9 @@ function viewHome() {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "题型地图"), h("span", { class: "small faint" }, "13 个题型，覆盖面试里绝大多数题")),
         patternTiles())),
-    h("div", { class: "grid-2" },
+    h("div", { class: "hubs" },
+      h("a", { class: "panel hub", href: "#mock" }, h("div", { class: "eyebrow" }, "模拟面试"), h("h2", null, "让 AI 面试官先问你一遍"),
+        h("p", { class: "muted" }, "按你的简历和项目出题、追问；每题五维打分，给出优化后的回答和要补的知识，最后出复盘报告。")),
       h("a", { class: "panel hub", href: "#py" }, h("div", { class: "eyebrow" }, "Python 刷题语法"), h("h2", null, "思路有了，别卡在写法上"),
         h("p", { class: "muted" }, `${PYDATA.sections.length} 节：切片、推导式、deque、Counter、heapq、bisect、排序、递归、输入输出、常见坑……每个例子都能直接运行。`)),
       h("a", { class: "panel hub", href: "#kb" }, h("div", { class: "eyebrow" }, "AI 知识"), h("h2", null, "大模型、Agent、Harness"),
@@ -489,4 +491,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), py: () => viewPython(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: () => viewKB(), py: () => viewPython(), mock: () => viewMock(), ws: r => viewWorkspace(r) };
