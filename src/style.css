@@ -692,3 +692,42 @@ select.btn { padding-right: 8px; }
   .sd-crit { grid-template-columns: minmax(0, 1fr) 54px; }
   .sd-crit .bar { grid-column: 1 / -1; }
 }
+
+/* ---------- 设计编码：AI 老师抽屉 / 工具箱 / 压力追问 ---------- */
+.sd-fab { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 41; box-shadow: var(--shadow); border-radius: 22px; padding: 10px 18px; }
+.sd-drawer { position: fixed; top: var(--top); right: 0; bottom: 0; width: min(440px, 100vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow); z-index: 42; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s ease; visibility: hidden; }
+.sd-drawer.open { transform: none; visibility: visible; }
+.sd-drawer-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
+.sd-drawer-ctx { display: block; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-drawer .chat { flex: 1; min-height: 0; }
+.sd-drawer .msgs { max-height: none; }
+body.sd-tutor-open .sd-fab { display: none; }
+@media (min-width: 1360px) { body.sd-tutor-open .page.sd-page { margin-right: 456px; margin-left: 24px; max-width: none; } }
+.sd-coach { gap: 10px; margin-top: 4px; }
+.sd-coach .callout .mock-ul { margin: 6px 0 0; }
+.sd-bp { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
+.sd-bp b { color: var(--accent); }
+.sd-quick { border-color: var(--accent); }
+.sd-kit-table td { vertical-align: top; font-size: 13.5px; min-width: 120px; }
+.sd-kit-table td:first-child { min-width: 110px; }
+.sd-dims { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.sd-dims .panel { gap: 6px; }
+.sd-dims h3 { margin: 0; }
+.sd-dots { display: flex; flex-wrap: wrap; gap: 6px; }
+.sd-dots button { border: 1px solid var(--line); background: var(--surface); border-radius: 16px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.sd-dots button.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.sd-dots button.ok { border-color: var(--green); color: var(--green); }
+.sd-dots button.mid { border-style: dashed; border-color: var(--ink-2); }
+.sd-dots button.bad { border-color: var(--red); color: var(--red); }
+.sd-chain { display: flex; flex-wrap: wrap; gap: 6px; }
+.sd-chain span { font-size: 12.5px; padding: 3px 9px; border-radius: 12px; border: 1px solid var(--line); }
+.sd-chain span.hit { border-color: var(--green); color: var(--green); background: var(--green-soft); }
+.sd-chain span.miss { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+.sd-fill { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+@media (max-width: 720px) {
+  .sd-fab { right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+  .sd-drawer { width: 100vw; border-left: 0; }
+}
+.sd-fields li { grid-template-columns: 150px minmax(0, 1fr); }
+@media (max-width: 720px) { .sd-fields li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+.sd-page .chip { max-width: 100%; white-space: normal; text-align: left; height: auto; }

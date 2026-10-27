@@ -38,7 +38,7 @@ cd ~/tiyan-algo && node server.mjs                                         # 打
   - 手写实战：`labs/*.py` → `gen_labs.py`（需要带 numpy 的 Python 3.12）→ `labs.json`
   - Python 刷题语法：`python_features.py` → `gen_python.py` → `python.json`
   - 算法题独立校验：`oracles.py`（每题的暴力解 + 随机小输入 + 性能用的大输入），`gen.py` 会交叉验证参考解
-  - 设计编码：`sd/*.py`（12 道积木题 + 5 道设计题）→ `gen_sd.py` → `sd.json`；对应的编码题在 `labs/sd_*.py`
+  - 设计编码：`sd/*.py`（12 道积木题 + 10 道设计题；`EXTRAS` 给每道设计题配 10 问压力追问 / 指标口径 / 技术选型五句；`toolbox.py` 是机制工具箱）→ `gen_sd.py` → `sd.json`；对应的编码题在 `labs/sd_*.py`
   - 项目实战：`capstones/<id>/meta.py`（里程碑说明）、`skeleton/`（公开的项目骨架，打包成 `public/capstones/<id>.zip`）、`reference/`（参考实现，只在本机，不提交）→ `gen_capstones.py` → `capstones.json`
 
 改了 `src/` 或 `data/problems.json` 之后运行 `python3 build.py` 重新生成页面。
