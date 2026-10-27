@@ -650,3 +650,45 @@ select.btn { padding-right: 8px; }
   .nav.open a { padding: 10px 12px; }
   .brand-mark { font-size: 24px; }
 }
+
+/* ---------- 设计编码 ---------- */
+.sd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+.sd-side { position: sticky; top: calc(var(--top) + 12px); max-height: calc(100vh - var(--top) - 32px); overflow: auto; gap: 8px; }
+.sd-order { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 2px; font-size: 13.5px; }
+.sd-order li { padding: 5px 8px; border-radius: 5px; }
+.sd-order li.on { background: var(--accent-soft); }
+.sd-order li.on a { color: var(--accent); font-weight: 600; }
+.sd-order a { color: var(--ink-2); }
+.sd-timer { font: 600 22px/1 var(--mono); padding: 6px 12px; border-radius: 8px; background: var(--surface-2); min-width: 92px; text-align: center; }
+.sd-timer.over { color: var(--red); background: var(--red-soft); font-size: 15px; }
+.sd-segbar { display: flex; gap: 6px; flex-wrap: wrap; }
+.sd-segbar span { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); font-size: 13px; color: var(--ink-3); }
+.sd-segbar span.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.sd-segbar span.done { color: var(--green); border-color: var(--green); }
+.sd-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.sd-four { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sd-prompt { font: 600 22px/1.5 var(--serif); margin: 6px 0; }
+.sd-cmp { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.sd-cmp h3 { font-size: 15px; }
+.sd-cmp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.sd-user { white-space: pre-wrap; font-size: 14px; background: var(--surface-2); border-radius: 6px; padding: 8px 10px; min-height: 40px; color: var(--ink-2); }
+.sd-states { display: grid; gap: 6px; }
+.sd-state { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px; align-items: baseline; font-size: 14px; }
+.sd-state code, .sd-chip { font: 600 12.5px/1.4 var(--mono); padding: 2px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.sd-ok { color: var(--green); font-weight: 600; }
+.sd-bad { color: var(--red); font-weight: 600; }
+.sd-table tbody tr { cursor: pointer; }
+.sd-table tbody tr:hover { background: var(--surface-2); }
+.sd-crit { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) 54px; gap: 12px; align-items: center; font-size: 14px; }
+.sd-crit .bar { height: 8px; }
+.sd-compose { gap: 6px; }
+.sd-dlink { font-weight: 600; }
+.sd-mark button { padding: 4px 10px; font-size: 12.5px; }
+.sd-sec > summary { font-size: 15px; }
+@media (max-width: 960px) {
+  .sd-grid { grid-template-columns: minmax(0, 1fr); }
+  .sd-side { position: static; max-height: none; order: -1; }
+  .sd-three, .sd-four, .sd-cmp-grid { grid-template-columns: minmax(0, 1fr); }
+  .sd-crit { grid-template-columns: minmax(0, 1fr) 54px; }
+  .sd-crit .bar { grid-column: 1 / -1; }
+}

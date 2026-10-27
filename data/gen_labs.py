@@ -41,7 +41,7 @@ for lab in labs:
     if miss: errors.append(f"{lid} 缺字段 {miss}"); continue
     if lid in ids: errors.append(f"{lid} id 重复")
     ids.add(lid)
-    if lab["course"] not in ("llm", "agent", "harness", "dev", "arch"): errors.append(f"{lid} course 不合法")
+    if lab["course"] not in ("llm", "agent", "harness", "dev", "arch", "sd"): errors.append(f"{lid} course 不合法")
     if lab["level"] not in ("easy", "medium", "hard"): errors.append(f"{lid} level 不合法")
     if len(lab["hints"]) != 3: errors.append(f"{lid} hints 需要 3 条")
     if len(lab["desc"]) < 300: errors.append(f"{lid} 题面太短")
@@ -57,7 +57,7 @@ for lab in labs:
     if not s["compile_error"] and s["passed"] == s["total"]: errors.append(f"{lid} 起始代码直接就能通过可见测试，起始代码应该留空待实现")
     lab["numpy"] = bool(lab.get("numpy"))
     lab["packages"] = sorted(set(lab.get("packages", []) + (["numpy"] if lab["numpy"] else [])))
-print("实战题:", len(labs), {c: sum(1 for l in labs if l.get("course") == c) for c in ("llm", "agent", "harness", "dev", "arch")})
+print("实战题:", len(labs), {c: sum(1 for l in labs if l.get("course") == c) for c in ("llm", "agent", "harness", "dev", "arch", "sd")})
 if errors:
     print("\n".join("ERROR " + e for e in errors)); sys.exit(1)
 if "--only" not in sys.argv:
