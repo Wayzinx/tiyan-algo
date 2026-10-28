@@ -52,7 +52,7 @@ async function sdAsk(box, prompt, render) {
   catch (e) { box.textContent = e && e.code ? aiErr(e) : "评估失败：" + ((e && e.message) || e); }
 }
 function scoreLine(score, extra) { const [cls, band] = mockBand(score); return h("div", { class: "row" }, h("span", { class: "mock-score num" }, String(score), h("small", null, " / 10")), h("span", { class: "pill " + cls }, band), h("span", { class: "small faint" }, "AI 估算，仅供参考"), extra || ""); }
-const SD_TABS = [["sd", "总览"], ["sd-kit", "机制工具箱"], ["sd-s1", "① 识别模式"], ["sd-s2", "② 口述积木题"], ["sd-s3", "③ 口述设计题"], ["sd-s4", "④ 随机抽题"], ["sd-s5", "⑤ 压力追问"]];
+const SD_TABS = [["sd", "总览"], ["sd-kit", "机制工具箱"], ["sd-s1", "① 识别模式"], ["sd-s2", "② 口述积木题"], ["sd-s3", "③ 口述设计题"], ["sd-s4", "④ 随机抽题"], ["sd-s5", "⑤ 压力追问"], ["sd-sys", "⑥ 系统设计实战"]];
 function sdTabs(cur) { return h("nav", { class: "page-tabs" }, SD_TABS.map(([k, t]) => h("a", { href: "#" + k, class: k === cur ? "on" : "" }, t))); }
 function sdPage(cur, title, lede, ...body) {
   return h("div", { class: "page wide sd-page" }, h("section", { class: "hero", style: "gap:8px" }, h("div", { class: "eyebrow" }, "设计编码"), h("h1", null, title), lede ? h("p", { class: "lede" }, lede) : ""), sdTabs(cur), ...body, sdTutorEl());
@@ -99,10 +99,24 @@ function sdLib() {
   if (TB.security) items.push({ id: "security", where: "机制工具箱 › 安全清单", text: TB.security.map(s => `${s.item}：${s.detail}`).join("\n") });
   if (TB.pressure) items.push({ id: "pressure", where: "机制工具箱 › 压力追问 10 问", text: TB.pressure.map(p => `${p.q}\n想听到：${p.wants}\n常见失分：${p.trap}`).join("\n") });
   (TB.metric_drills || []).forEach((m, i) => items.push({ id: "metric" + i, where: `指标口径 › ${m.name}`, text: `${m.ask}\n分子：${m.numerator}\n分母：${m.denominator}\n排除：${m.exclude}\n陷阱：${m.traps.join("；")}\n参考：${m.answer}` }));
+  (SDD.systems || []).forEach(x => { items.push({ id: x.id, where: `系统设计 › ${x.title}`, text: [x.statement, "题眼：" + x.focus, "常见错误：" + x.mistakes.map(m => m.wrong + "：" + m.why).join("；"), "口述版：" + x.oral, "例子推演：" + x.walkthrough].join("\n") }); x.sections.forEach(c => items.push({ id: `${x.id}-${c.key}`, where: `系统设计 › ${x.title} › ${c.title}`, text: c.reference + (c.ddl ? "\n" + c.ddl : "") })); });
   if (TB.formula) items.push({ id: "formula", where: "机制工具箱 › 总纲", text: [TB.formula, TB.formula_note, TB.principle, (TB.metric_rules || []).join("\n")].join("\n") });
   return SD_LIB = new Library(items);
 }
-function sdTopicText(t) { return !t ? "" : t.states ? sdBlockText(t) : t.steps ? sdDesignText(t) : String(t.text || ""); }
+// 系统设计题的草稿存在本地：切页面回来后老师仍然能看到当前设计和最近一次总评
+function sdAttempt() {
+  const t = SD_CTX.topic;
+  if (SD_CTX.attempt || !t || !t.sections) return SD_CTX.attempt;
+  const st = SYS.get(t.id), any = Object.values(st.d || {}).some(v => (v || "").trim()) || (st.ddl || "").trim();
+  return any ? `【⑥ 系统设计】${t.title}，我的当前设计：\n` + sysDraftText(t, st) : "";
+}
+function sdReview() {
+  const t = SD_CTX.topic;
+  if (SD_CTX.review || !t || !t.sections) return SD_CTX.review;
+  const f = (SYS.get(t.id).full || {}).ev;
+  return f ? JSON.stringify(f) : "";
+}
+function sdTopicText(t) { return !t ? "" : t.states ? sdBlockText(t) : t.steps ? sdDesignText(t) : t.sections ? sdSysText(t) : String(t.text || ""); }
 function sdFocus(where, topic) {
   SD_CTX.where = where;
   if (topic !== undefined && topic !== SD_CTX.topic) { SD_CTX.topic = topic; SD_CTX.attempt = ""; SD_CTX.review = ""; }
@@ -110,14 +124,14 @@ function sdFocus(where, topic) {
 }
 function sdTutorEl() {
   const lib = sdLib();
-  const outline = SDD.blocks.map(b => `- ${b.id} ${b.title}`).concat(SDD.designs.map(d => `- ${d.id} ${d.title}`), (TB.mechanisms || []).map((m, i) => `- mech${i} ${m.name}`), ["- tpl 回答模板", "- styles 面试官追问风格", "- security 安全清单", "- pressure 压力追问 10 问"], (TB.metric_drills || []).map((m, i) => `- metric${i} 指标口径：${m.name}`)).join("\n");
+  const outline = SDD.blocks.map(b => `- ${b.id} ${b.title}`).concat(SDD.designs.map(d => `- ${d.id} ${d.title}`), (SDD.systems || []).map(x => `- ${x.id} 系统设计：${x.title}（各环节 id：${x.id}-clarify / -services / -tables / -states / -flows …）`), (TB.mechanisms || []).map((m, i) => `- mech${i} ${m.name}`), ["- tpl 回答模板", "- styles 面试官追问风格", "- security 安全清单", "- pressure 压力追问 10 问"], (TB.metric_drills || []).map((m, i) => `- metric${i} 指标口径：${m.name}`)).join("\n");
   const chat = new Chat({
     key: "sd:tutor",
     context: () => SD_TEACHER + "\n\n【站内资料目录（id 可直接 read_section）】\n" + outline
       + (SD_CTX.where ? `\n\n【学习者现在在】${SD_CTX.where}` : "")
       + (SD_CTX.topic ? "\n\n【当前题目与参考答案】（学习者没要求就不要整段照抄参考，先引导）\n" + clip(sdTopicText(SD_CTX.topic), 5000) : "")
-      + (SD_CTX.attempt ? "\n\n【学习者刚才的作答】\n" + clip(SD_CTX.attempt, 3000) : "")
-      + (SD_CTX.review ? "\n\n【刚才 AI 评估的结果】\n" + clip(SD_CTX.review, 2500) : ""),
+      + (sdAttempt() ? "\n\n【学习者刚才的作答】\n" + clip(sdAttempt(), 6000) : "")
+      + (sdReview() ? "\n\n【刚才 AI 评估的结果】\n" + clip(sdReview(), 3000) : ""),
     placeholder: "哪里没想通就问，比如“为什么失败不能缓存？”“这题我说用分布式锁，哪里不对？”",
     intro: "我能看到你正在练的题、你的作答和最近一次评估。写完 / 说完之后点「帮我查漏补缺」，我会告诉你哪里想错了、漏了什么、怎么说更好，以及下次遇到类似场景该怎么想。",
     actions: [
@@ -170,6 +184,8 @@ function viewSD({ sub }) {
   if (sub === "s4") return sdStage4();
   if (sub === "s5") return sdStage5();
   if (sub === "kit") { sdFocus("机制工具箱", null); return sdKit(); }
+  if (sub === "sys") return sdSysList();
+  if (/^x\d+$/.test(sub) && sdSys(sub)) return sdSysView(sdSys(sub));
   if (/^p\d+$/.test(sub) && sdBlock(sub)) { sdFocus("积木题讲解", sdBlock(sub)); return sdBlockView(sdBlock(sub)); }
   if (/^d\d+$/.test(sub) && sdDesign(sub)) { sdFocus("设计题讲解", sdDesign(sub)); return sdDesignView(sdDesign(sub)); }
   sdFocus("设计编码总览", null);
@@ -207,6 +223,7 @@ function sdOverview() {
     ["sd-s3", "第三轮 · 60 分钟", "口述设计题", "严格按：澄清 → 对象 → 主流程 → 失败恢复 → 并发限流 → 指标。设计 1 至少完整说两遍。", SDD.designs.filter(d => (a.s3[d.id] || []).length).length],
     ["sd-s4", "第四轮 · 20 分钟", "随机抽题", "只看题目名，30 秒内说出：两个核心状态、一个最重要不变量、一个失败场景、一个扩展追问。", SD_CORE.filter(id => (a.s4[id] || []).length).length],
     ["sd-s5", "第五轮 · 30 分钟", "压力追问", "挑一道设计题，连续答 10 个深挖问题（最坏时刻、多实例、多机房、10 倍流量、选型、灰度），再练技术选型五句和指标口径。AI 面试官逐题点评。", SDD.designs.filter(d => Object.values((S5.get(d.id).ten) || {}).some(x => x && x.ev)).length],
+    ["sd-sys", "第六轮 · 45 分钟 / 题", "系统设计实战", "给一个需求，完整设计服务、表、接口、状态机和流程，最后用例子走一遍；AI 架构师逐节评审、整份总评。", (SDD.systems || []).filter(x => (SYS.get(x.id).hist || []).length).length],
   ];
   return sdPage("sd", "看到题目 30 秒内，先弹出骨架", "这里真正 Agent 专属的内容不多：DAG 调度是图算法加任务状态机，幂等执行是 singleflight 加状态机，无损续跑是持久化状态机加权威状态对账。你要练的不是背代码，而是建立十几个高频模式的召回路径——骨架出来了，细节就有地方挂。",
     h("section", { class: "panel sd-quick" }, h("div", { class: "spread" }, h("h2", null, "面试前一小时速通"), h("button", { class: "btn primary sm", type: "button", onclick: () => sdTutorAsk("我马上要面试 Agent / Harness 方向的系统设计。请按优先级（无损续跑 → Model Router → fan-out / workflow → 上下文与记忆 → 多 Harness 适配 → Sandbox → 工具 / API 安全）帮我快速查漏补缺：每个方向先问我一个最关键的问题，一次一个；我答完你点评（哪里想错了、更好的答法、下次怎么想），再进下一个方向。", "面试前速通：按优先级查漏补缺") }, "让 AI 老师按优先级考我")),
@@ -221,7 +238,7 @@ function sdOverview() {
         h("p", { class: "small muted" }, "例：看到“同一个 key 并发只执行一次”，先写出 completed[key] / inflight[key] 两个状态和“同一时刻只有一个 leader、成功才缓存、失败不缓存”，这题就完成了七成。")),
       h("section", { class: "panel" }, h("h2", null, "设计题统一起手式"), h("div", { class: "oneline", style: "font-size:17px" }, "澄清 → 对象 → 主流程 → 失败恢复 → 并发限流 → 指标"),
         h("p", { class: "small muted" }, "不会完整设计时，也可以这样开口：“我先确认一下任务数量、是否存在依赖、是否允许部分成功，以及有没有外部副作用。核心上我会把它拆成任务定义、执行状态和持久化日志三部分。正常流程先讲一遍，然后重点处理重试、幂等和恢复。”说着说着，你就有时间继续想了。"))),
-    h("section", { class: "stack" }, h("h2", null, "急救训练：五轮约三个半小时"), h("div", { class: "hubs" }, plan.map(([href, when, t, d, n]) => h("a", { class: "panel hub", href: "#" + href }, h("div", { class: "eyebrow" }, when), h("h2", null, t), h("p", { class: "small muted" }, d), h("div", { class: "small faint num" }, `已练 ${n} 题`))))),
+    h("section", { class: "stack" }, h("h2", null, "急救训练：六轮，系统设计题按需加练"), h("div", { class: "hubs" }, plan.map(([href, when, t, d, n]) => h("a", { class: "panel hub", href: "#" + href }, h("div", { class: "eyebrow" }, when), h("h2", null, t), h("p", { class: "small muted" }, d), h("div", { class: "small faint num" }, `已练 ${n} 题`))))),
     h("section", { class: "panel" }, h("div", { class: "panel-h" }, h("h2", null, "模式索引"), h("span", { class: "small faint" }, "推荐顺序：P7 → P8 → P5 → P6 → P2 → P3 → P4 → 设计题；每题最该记住的是两个核心状态")),
       h("div", { class: "scroll-x" }, h("table", { class: "ptable sd-table" }, h("thead", null, h("tr", null, ["", "题目", "本质", "两个核心状态", "①", "②", "④"].map(x => h("th", null, x)))), h("tbody", null, rows)))),
     h("section", { class: "panel" }, h("h2", null, "设计题 = 积木的组合"),
@@ -809,4 +826,262 @@ ${SD_COACH_RULE}
   onLeave(() => { SD_REDRAW = null; });
   draw();
   return sdPage("sd-s5", "第五轮：压力追问", "讲完设计，面试官会连续深挖：最坏时刻挂了、多实例重复执行、多机房、10 倍流量、为什么选它、怎么证明收益。每一问都按因果链答，AI 面试官逐题点评、追问一层，最后给整场复盘。", h("div", { class: "sd-grid" }, box, side));
+}
+
+// ----- ⑥ 系统设计实战：给需求，设计服务 / 表 / 接口 / 状态机 / 流程；逐节和整份 AI 评审 -----
+const sdSys = id => (SDD.systems || []).find(x => x.id === id);
+const SYS_NAMES = { clarify: "需求澄清", estimate: "规模估算", services: "服务与组件", tables: "数据模型（表）", api: "接口与事件", states: "状态机", flows: "核心流程", reliability: "可靠性与扩展" };
+// 每一节只问问题，不点名答案；题目自带的引导语作为提示 1，得分点作为提示 2
+const SYS_ASK = {
+  clarify: "先别设计。你会问面试官哪些问题？列出功能边界、非功能目标（延迟 / 可用性 / 一致性）和你的关键假设，并说出这道题的题眼。",
+  estimate: "用规模假设算出关键数字（QPS、峰值、存储量、需要几台机器 / 几个分片），并说这些数字改变了哪个设计决定。",
+  services: "要哪些服务和组件？每个负责什么、有状态还是无状态、怎么扩展、彼此怎么通信？可以画一张架构图。",
+  tables: "需要哪些表？写出建表语句：主键、唯一键（哪个是幂等键）、索引分别服务于哪个查询？哪些东西不该放在表里？",
+  api: "对外接口和内部接口 / 事件有哪些？关键参数、幂等键和返回语义是什么？",
+  states: "核心对象有哪些状态？合法转换是什么？并发下怎么保证同一个转换只发生一次？可以画状态图。",
+  flows: "把核心主链路按时间顺序讲一遍：谁调用谁、状态怎么变；再讲一两个关键分支。可以画时序图。",
+  reliability: "哪里会出故障、出了怎么办？选主、幂等、重试、恢复、兜底巡检、限流隔离、扩展和监控分别怎么做？",
+};
+const SYS_TPL = {
+  services: 'flowchart LR\n  user["用户"] --> api["API 服务"]\n  api --> db[("数据库")]\n  api --> mq[["消息队列"]]',
+  states: "stateDiagram-v2\n  [*] --> INIT\n  INIT --> RUNNING: 开始执行\n  RUNNING --> SUCCEEDED: 成功\n  RUNNING --> FAILED: 失败",
+  flows: "sequenceDiagram\n  participant U as 用户\n  participant A as API 服务\n  participant D as 数据库\n  U->>A: 提交请求\n  A->>D: 写入\n  A-->>U: 返回",
+  tables: "CREATE TABLE task (\n  id BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',\n  name VARCHAR(128) NOT NULL COMMENT '名称',\n  status TINYINT NOT NULL COMMENT '状态',\n  created_at DATETIME NOT NULL,\n  PRIMARY KEY (id),\n  UNIQUE KEY uk_name (name),\n  KEY idx_status (status)\n) COMMENT='任务定义';",
+};
+const SYS = {
+  get(id) { return LS.get("tiyan:sys:" + id, {}); },
+  patch(id, path, val) { const a = this.get(id); let o = a; for (const k of path.slice(0, -1)) o = o[k] = o[k] || {}; o[path[path.length - 1]] = val; LS.set("tiyan:sys:" + id, a); },
+  set(id, v) { LS.set("tiyan:sys:" + id, v); },
+};
+function sysJob(key, prompt, xid, path, tier) {
+  if (SD_JOBS[key]) return;
+  if (!AI.ok()) { toast(aiErr({ code: S.ai === "needkey" ? "need_key" : "unavailable" })); if (S.ai === "needkey") openKeyDialog(); return; }
+  SD_JOBS[key] = true;
+  SYS.patch(xid, path.concat("err"), "");
+  if (SD_REDRAW) SD_REDRAW();
+  AI.ask(prompt, { json: true, tier: tier || "default" })
+    .then(r => { SYS.patch(xid, path.concat("ev"), r); sdNote(null, r); if (path[0] === "full") { const st = SYS.get(xid); SYS.patch(xid, ["hist"], (st.hist || []).concat([{ at: Date.now(), score: Number(r.overall) || 0 }]).slice(-20)); } })
+    .catch(e => SYS.patch(xid, path.concat("err"), e && e.code ? aiErr(e) : "评审失败：" + ((e && e.message) || e)))
+    .finally(() => { delete SD_JOBS[key]; if (SD_REDRAW) SD_REDRAW(); });
+}
+// Mermaid：只在需要画图时加载
+let MERMAID = null, MERMAID_N = 0;
+function mermaidLib() {
+  if (!MERMAID) MERMAID = loadScript("vendor/mermaid.min.js").then(() => {
+    const t = document.documentElement.dataset.theme, dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+    window.mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "neutral", fontFamily: "inherit", flowchart: { htmlLabels: false } });
+    return window.mermaid;
+  }).catch(e => { MERMAID = null; throw e; });
+  return MERMAID;
+}
+async function renderMermaid(el, code) {
+  el.textContent = ""; el.append(h("div", { class: "thinking" }, "画图中……"));
+  const id = "mmd" + (++MERMAID_N);
+  try { const m = await mermaidLib(); const { svg } = await m.render(id, String(code || "").trim()); el.innerHTML = svg; }
+  catch (e) { el.textContent = ""; el.append(h("div", { class: "small", style: "color:var(--red)" }, "图没画出来：" + clip(String((e && e.message) || e), 300))); }
+  finally { const junk = document.getElementById("d" + id); if (junk) junk.remove(); }
+}
+function mermaidBox(code) { const el = h("div", { class: "sd-mmd" }); renderMermaid(el, code); return el; }
+function ddlView(r) {
+  if (!r) return "";
+  if (!r.ok) return h("div", { class: "stack", style: "gap:6px" }, h("div", { class: "small", style: "color:var(--red)" }, "建表失败：" + r.error), r.converted ? h("details", { class: "qa" }, h("summary", null, "转换成 SQLite 后的语句（看看是哪一句出的错）"), h("pre", { class: "sd-pre" }, r.converted)) : "");
+  return h("div", { class: "sd-ddl" }, r.tables.map(t => h("div", { class: "sd-ddl-t" }, h("b", { class: "mono" }, t.name),
+    h("div", { class: "small mono" }, t.cols.map(c => h("div", null, c.pk ? "🔑 " : "　 ", c.name, h("span", { class: "faint" }, " " + (c.type || "")), c.notnull ? h("span", { class: "faint" }, " NOT NULL") : ""))),
+    t.indexes.length ? h("div", { class: "small" }, t.indexes.map(i => h("div", null, h("span", { class: "pill " + (i.origin === "pk" ? "master" : i.unique ? "passed" : "todo") }, i.origin === "pk" ? "主键" : i.unique ? "唯一" : "索引"), " ", h("span", { class: "mono" }, "(" + i.cols.join(", ") + ")")))) : h("div", { class: "small", style: "color:var(--red)" }, "没有任何索引"))));
+}
+function ddlSummary(r) { return !r ? "" : !r.ok ? "建表失败：" + r.error : r.tables.map(t => `${t.name}(${t.cols.map(c => c.name + (c.pk ? "*" : "")).join(", ")}) 索引：${t.indexes.map(i => (i.unique ? "U" : "") + "(" + i.cols.join(",") + ")").join(" ") || "无"}`).join("\n"); }
+async function checkDDL(ddl) {
+  if (!Py.loaded.has("sqlite3")) await Py.loadPackage("sqlite3");
+  return Py.json("check_ddl", [ddl], 15000);
+}
+const VERDICT_CLS = { "对": "passed", "方向对但不准": "trying", "有错": "due", "搞反": "due", "缺失": "todo", "最大扣分点": "due" };
+function verdictTable(items) {
+  const arr = (Array.isArray(items) ? items : []).slice(0, 12);
+  if (!arr.length) return "";
+  return h("div", { class: "scroll-x" }, h("table", { class: "ptable sd-verdicts" }, h("thead", null, h("tr", null, ["你的设计", "评价", "说明"].map(x => h("th", null, x)))),
+    h("tbody", null, arr.map(x => h("tr", null, h("td", null, String(x.you || "")), h("td", null, h("span", { class: "pill " + (VERDICT_CLS[x.verdict] || "todo") }, String(x.verdict || ""))), h("td", null, String(x.why || "")))))));
+}
+function sdSysText(x) {
+  return [`系统设计题 ${x.id} ${x.title}`, "需求：" + x.statement, "题眼：" + x.focus, "规模：" + x.scale, "例子：" + x.example,
+    ...x.sections.map(c => `【${c.title}】得分点：${c.points.join("；")}\n参考：${c.reference}${c.ddl ? "\n参考建表：\n" + c.ddl : ""}`),
+    "常见错误：" + x.mistakes.map(m => `${m.wrong}（${m.verdict}）${m.why}`).join("；"), "例子推演：" + x.walkthrough, "2 分钟口述版：" + x.oral,
+    "追问：\n" + x.followups.map(f => `问：${f.q}\n答：${f.a}`).join("\n")].join("\n");
+}
+function sysDraftText(x, st) {
+  const d = st.d || {}, dg = st.dg || {};
+  return x.sections.map(c => { const t = [d[c.key], c.key === "tables" && st.ddl ? "建表：\n" + st.ddl : "", dg[c.key] ? "图（Mermaid）：\n" + dg[c.key] : ""].filter(Boolean).join("\n"); return `【${c.title}】\n${t || "（没写）"}`; }).join("\n\n");
+}
+function sdSysList() {
+  sdFocus("⑥ 系统设计实战", null);
+  const xs = SDD.systems || [];
+  return sdPage("sd-sys", "系统设计实战：从需求到表、服务和流程", "面试官给一个需求，你要在 45 分钟左右给出完整方案：澄清 → 估算 → 服务与组件 → 表 → 接口 → 状态机 → 核心流程 → 可靠性，最后用题目里的例子把设计走一遍。每一节都可以让 AI 架构师评审，整份写完再做一次总评，逐条告诉你哪里对、哪里方向对但不准、哪里搞反了。",
+    h("section", { class: "panel" }, h("h2", null, "怎么练"), h("ol", { class: "steps" },
+      h("li", null, h("b", { class: "num" }, 1), h("span", null, "先读题眼：每道题真正考的只有一两个约束（比如“调度延迟尽可能低”），整份设计都要围着它转。")),
+      h("li", null, h("b", { class: "num" }, 2), h("span", null, "按环节写，先别看参考。表结构写成建表语句，可以用 SQLite 当场检查；架构图、状态图、时序图用 Mermaid 文本画，能实时预览。")),
+      h("li", null, h("b", { class: "num" }, 3), h("span", null, "写完一节可以让 AI 评审这一节；整份写完提交总评：结论先行、逐条点评、用例子走一遍你的设计、面试官必问点。")),
+      h("li", null, h("b", { class: "num" }, 4), h("span", null, "对照参考答案、常见错误答法和 2 分钟口述版；再让 AI 面试官按你的设计追问。隔一天再从空白写一遍。")))),
+    !xs.length ? h("p", { class: "muted" }, "题目还在准备中，稍后刷新再来。") :
+      h("div", { class: "hubs" }, xs.map(x => { const st = SYS.get(x.id), done = x.sections.filter(c => ((st.d || {})[c.key] || "").trim() || (c.key === "tables" && (st.ddl || "").trim())).length, last = (st.hist || []).slice(-1)[0];
+        return h("a", { class: "panel hub", href: "#sd-" + x.id }, h("div", { class: "eyebrow" }, (x.priority ? "★ " : "") + `${x.minutes} 分钟`), h("h2", null, x.title), h("p", { class: "small muted" }, x.brief), h("p", { class: "small" }, h("b", null, "题眼："), clip(x.focus, 70)),
+          h("div", { class: "small faint num" }, `已写 ${done} / ${x.sections.length} 节` + (last ? `　上次总评 ${last.score} 分` : ""))); })));
+}
+function sdSysView(x) {
+  sdFocus("⑥ 系统设计实战", x);
+  const box = h("div", { class: "stack" });
+  const side = h("aside", { class: "panel sd-side" });
+  const ta = (id, val, onInput, cls, rows) => { const t = h("textarea", { class: "mock-input " + (cls || ""), id, style: `min-height:${rows || 120}px`, spellcheck: "false" }); t.value = val || ""; t.addEventListener("input", () => { if (!SYS.get(x.id).t0) SYS.patch(x.id, ["t0"], Date.now()); onInput(t.value); }); return t; };
+  const pending = t => h("div", { class: "thinking" }, t || "AI 架构师在评审……（大约 20–60 秒，可以先写下一节）");
+  const errRow = (msg, retry) => h("div", { class: "row" }, h("span", { class: "small", style: "color:var(--red)" }, msg), h("button", { class: "btn sm", type: "button", onclick: retry }, "重试"));
+  const ctxPrompt = () => `【题目】${x.title}\n【需求】${clip(x.statement, 1500)}\n【题眼】${x.focus}\n【规模】${x.scale}\n【例子】${x.example}`;
+  const mistakes = () => x.mistakes.map(m => `- ${m.wrong}（${m.verdict}：${m.why}）`).join("\n");
+  let tick = null;
+  const draw = () => {
+    const st = SYS.get(x.id), d = st.d || {}, dg = st.dg || {};
+    box.textContent = ""; side.textContent = "";
+    const used = st.t0 ? Math.round((Date.now() - st.t0) / 1000) : 0;
+    const clock = h("span", { class: "sd-timer num" + (used > x.minutes * 60 ? " over" : "") }, st.t0 ? fmtSec(used).replace("+", "") : "0:00");
+    clearInterval(tick); if (st.t0) tick = setInterval(() => { const u = Math.round((Date.now() - st.t0) / 1000); clock.textContent = fmtSec(u).replace("+", ""); clock.classList.toggle("over", u > x.minutes * 60); }, 1000);
+    const written = c => ((d[c.key] || "").trim() || (c.key === "tables" && (st.ddl || "").trim()) || (dg[c.key] || "").trim()) ? true : false;
+    side.append(h("div", { class: "eyebrow" }, "环节"), h("ol", { class: "sd-order" }, x.sections.map((c, i) => { const e = ((st.sec || {})[c.key] || {}).ev; return h("li", null, h("a", { href: "#sd-" + x.id, onclick: ev => { ev.preventDefault(); const n = document.getElementById("sys-" + c.key); if (n) n.scrollIntoView({ behavior: "smooth", block: "start" }); } }, `${i + 1}. ${c.title}`), h("span", { class: "small faint num" }, ` ${c.minutes}′`), written(c) ? h("span", { class: "sd-ok" }, " ✓") : "", e ? h("span", { class: "small num" }, ` ${e.score}`) : "", ((st.peek || {})[c.key]) ? h("span", { class: "small faint" }, " 看过参考") : ""); })),
+      h("a", { class: "btn primary sm", href: "#sd-" + x.id, onclick: ev => { ev.preventDefault(); const n = document.getElementById("sys-full"); if (n) n.scrollIntoView({ behavior: "smooth" }); } }, "去提交总评 ↓"),
+      (st.hist || []).length ? h("p", { class: "small muted num" }, "历次总评：" + st.hist.map(r => r.score).join(" → ")) : "");
+    box.append(h("section", { class: "panel" },
+      h("div", { class: "spread" }, h("div", { class: "eyebrow" }, (x.priority ? "★ " : "") + `建议 ${x.minutes} 分钟`), h("div", { class: "row" }, h("span", { class: "small faint" }, "已用"), clock,
+        h("button", { class: "btn ghost sm", type: "button", onclick: () => downloadFile(`系统设计-${x.title}.md`, sysMarkdown(x, SYS.get(x.id)), "text/markdown") }, "导出 Markdown"),
+        (() => { const b = h("button", { class: "btn ghost sm", type: "button" }, "清空重来"); b.addEventListener("click", () => { if (b.dataset.sure) { const keep = SYS.get(x.id).hist; SYS.set(x.id, keep ? { hist: keep } : {}); draw(); window.scrollTo(0, 0); } else { b.dataset.sure = "1"; b.textContent = "再点一次确认清空"; } }); return b; })())),
+      mdEl(x.statement),
+      h("div", { class: "callout" }, h("b", null, "题眼　"), x.focus),
+      h("div", { class: "grid-2" }, h("div", null, h("h3", null, "规模假设"), mdEl(x.scale, "small")), h("div", { class: "callout blue" }, h("b", null, "最后要用你的设计走一遍这个例子"), mdEl(x.example, "small")))));
+    x.sections.forEach((c, i) => {
+      const rec = (st.sec || {})[c.key] || {}, jk = `sys:${x.id}:${c.key}`;
+      const main = ta(`sys-${x.id}-${c.key}`, d[c.key], v => SYS.patch(x.id, ["d", c.key], v), "", c.key === "tables" ? 80 : 120);
+      main.placeholder = c.key === "tables" ? "说明：每张表的作用、为什么要这些字段和索引、哪些东西不该放在表里" : "出声讲，同时把要点写下来";
+      const kids = [];
+      let ddlTa = null, dgTa = null;
+      if (c.key === "tables") {
+        ddlTa = ta(`sys-${x.id}-ddl`, st.ddl, v => SYS.patch(x.id, ["ddl"], v), "mono sd-code", 220);
+        ddlTa.placeholder = "建表语句（MySQL 风格即可，COMMENT / ENGINE / KEY 都支持）";
+        const out = h("div", null, ddlView(st.ddlr));
+        const chk = h("button", { class: "btn sm", type: "button" }, "用 SQLite 检查建表");
+        chk.addEventListener("click", async () => { if (!ddlTa.value.trim()) { toast("先写建表语句"); return; } chk.disabled = true; out.textContent = ""; out.append(h("div", { class: "thinking" }, S.py === "ready" ? "建表中……" : "Python 运行环境加载中……")); try { const r = await checkDDL(ddlTa.value); SYS.patch(x.id, ["ddlr"], r); out.textContent = ""; out.append(ddlView(r)); } catch (e) { out.textContent = "检查失败：" + ((e && e.message) || e); } chk.disabled = false; });
+        kids.push(h("div", { class: "row" }, h("b", { class: "small" }, "建表语句"), !st.ddl ? h("button", { class: "btn ghost sm", type: "button", onclick: () => { ddlTa.value = SYS_TPL.tables; SYS.patch(x.id, ["ddl"], ddlTa.value); } }, "插入示例格式") : "", chk), ddlTa, out);
+      }
+      if (SYS_TPL[c.key] && c.key !== "tables") {
+        dgTa = ta(`sys-${x.id}-${c.key}-dg`, dg[c.key], v => SYS.patch(x.id, ["dg", c.key], v), "mono sd-code", 110);
+        dgTa.placeholder = "（可选）用 Mermaid 画图，点「预览」看效果";
+        const pv = h("div", { class: "sd-mmd-wrap" });
+        if ((dg[c.key] || "").trim()) renderMermaid(pv, dg[c.key]);
+        kids.push(h("div", { class: "row" }, h("b", { class: "small" }, c.key === "services" ? "架构图" : c.key === "states" ? "状态图" : "时序图"), !(dg[c.key] || "").trim() ? h("button", { class: "btn ghost sm", type: "button", onclick: () => { dgTa.value = SYS_TPL[c.key]; SYS.patch(x.id, ["dg", c.key], dgTa.value); renderMermaid(pv, dgTa.value); } }, "插入模板") : "", h("button", { class: "btn sm", type: "button", onclick: () => renderMermaid(pv, dgTa.value) }, "预览")), dgTa, pv);
+      }
+      const hint = h("div", { class: "hint-ladder" });
+      let hints = 0;
+      const hintBtn = h("button", { class: "btn ghost sm", type: "button" }, "卡住了，看提示");
+      hintBtn.addEventListener("click", () => {
+        hints++;
+        if (hints === 1) { hint.append(h("div", { class: "hint" }, h("b", null, "提示 1 · 方向"), c.prompt)); hintBtn.textContent = "还是没思路，看得分点"; }
+        else { hint.append(h("div", { class: "hint" }, h("b", null, "提示 2 · 得分点"), sdList(c.points))); hintBtn.disabled = true; }
+      });
+      const peeked = (st.peek || {})[c.key];
+      const ref = h("div", { class: "stack" });
+      const showRef = () => { ref.textContent = ""; ref.append(h("div", { class: "sd-ref" }, h("div", { class: "eyebrow" }, "参考答案"), mdEl(c.reference), c.diagram ? mermaidBox(c.diagram) : "", c.ddl ? h("details", { class: "qa" }, h("summary", null, "参考建表语句"), h("pre", { class: "sd-pre" }, c.ddl)) : "", h("div", { class: "small" }, "得分点："), sdList(c.points))); };
+      if (peeked) showRef();
+      const refBtn = h("button", { class: "btn ghost sm", type: "button" }, peeked ? "收起参考" : "看参考");
+      refBtn.addEventListener("click", () => { if (ref.childNodes.length) { ref.textContent = ""; refBtn.textContent = "看参考"; SYS.patch(x.id, ["peek", c.key], false); } else { showRef(); refBtn.textContent = "收起参考"; SYS.patch(x.id, ["peek", c.key], true); } });
+      const ask = () => {
+        const s2 = SYS.get(x.id), txt = (s2.d || {})[c.key] || "", ddl = c.key === "tables" ? s2.ddl || "" : "", dgx = (s2.dg || {})[c.key] || "";
+        if ((txt + ddl + dgx).trim().length < 10) { toast("先写几句再让 AI 评审"); return; }
+        const before = x.sections.slice(0, i).map(y => `${y.title}：${clip(((s2.d || {})[y.key] || "（没写）").replace(/\s+/g, " "), 300)}`).join("\n");
+        sdNote(`【⑥ 系统设计】${x.title} · ${c.title}\n${txt}${ddl ? "\n建表：\n" + ddl : ""}${dgx ? "\n图：\n" + dgx : ""}`, "");
+        sysJob(jk, `你是资深架构师，在做系统设计面试的逐节评审。学习者正在设计下面这道题，这次评审其中「${c.title}」这一节。
+${SD_COACH_RULE}
+${ctxPrompt()}
+【这一节要回答】${c.prompt}
+【得分点】${c.points.join("；")}
+【参考答案】${clip(c.reference, 3000)}${c.ddl ? "\n【参考建表】\n" + clip(c.ddl, 3000) : ""}
+【这道题的常见错误答法】\n${mistakes()}
+${before ? "【他前面几节写的（摘要）】\n" + before : ""}
+【他这一节的作答】\n${clip(txt, 4000) || "（只写了下面的建表 / 图）"}${ddl ? "\n【他的建表语句】\n" + clip(ddl, 4000) + (s2.ddlr ? "\n【SQLite 检查结果】\n" + ddlSummary(s2.ddlr) : "") : ""}${dgx ? "\n【他画的图（Mermaid）】\n" + clip(dgx, 2000) : ""}
+不要求和参考一致：满足需求和题眼、取舍说得通就给分；和参考不同但更好要明确肯定。像评审“原答案”那样逐条点评他写的要点；表设计要检查主键、唯一键（幂等）、索引是否服务于真实查询、有没有不该存的字段。
+评分档位：9–10 完整准确、围绕题眼、有取舍和数字；7–8.5 基本到位；5–6.5 骨架对但关键点缺失或不准；3–4.5 方向有误；0–2.5 基本没写。
+只返回 JSON：{"score": 6.5, "verdict": "一句话", "items": [{"you": "他写的某个要点（简述）", "verdict": "对|方向对但不准|有错|搞反|缺失|最大扣分点", "why": "为什么、正确做法"}], "missed": ["得分点里漏掉的"], ${SD_COACH_JSON}}`, x.id, ["sec", c.key]);
+      };
+      const ev = rec.ev, evBox = h("div", { class: "stack sd-ai" });
+      if (SD_JOBS[jk]) evBox.append(pending());
+      else if (rec.err) evBox.append(errRow(rec.err, ask));
+      else if (ev) evBox.append(scoreLine(Number(ev.score) || 0, ev.verdict ? h("span", { class: "small" }, String(ev.verdict)) : ""), verdictTable(ev.items), arrStr(ev.missed, 6).length ? h("div", null, h("h3", null, "漏掉的得分点"), sdList(arrStr(ev.missed, 6))) : "", coachEl(ev));
+      box.append(h("section", { class: "panel sd-sys-sec", id: "sys-" + c.key },
+        h("div", { class: "spread" }, h("h2", null, `${i + 1}. ${c.title}`), h("span", { class: "small faint" }, `建议 ${c.minutes} 分钟`)),
+        h("p", { class: "muted" }, SYS_ASK[c.key] || c.prompt), main, ...kids,
+        h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", disabled: !!SD_JOBS[jk], onclick: ask }, ev ? "改完了，重新评审这一节" : "AI 评审这一节"), hintBtn, refBtn),
+        hint, evBox, ref));
+    });
+    // 总评
+    const full = st.full || {}, fk = `sys:${x.id}:full`;
+    const askFull = () => {
+      const s2 = SYS.get(x.id), n = x.sections.filter(c => ((s2.d || {})[c.key] || "").trim() || (c.key === "tables" && (s2.ddl || "").trim())).length;
+      if (n < 3) { toast("至少写 3 节再提交总评"); return; }
+      const draft = sysDraftText(x, s2);
+      sdNote(`【⑥ 系统设计】${x.title} 整份设计：\n${clip(draft, 6000)}`, "");
+      sysJob(fk, `你是资深架构师 / 系统设计面试官。学习者完成了一份系统设计，请像写评审文档那样给出结论先行的评审，帮他查漏补缺。
+${SD_COACH_RULE}
+${ctxPrompt()}
+【参考设计要点】\n${x.sections.map(c => `${c.title}：${c.points.join("；")}`).join("\n")}
+【参考 2 分钟口述版】${x.oral}
+【这道题的常见错误答法】\n${mistakes()}
+【学习者的设计】\n${clip(draft, 12000)}${s2.ddlr ? "\n【他的建表语句 SQLite 检查结果】\n" + ddlSummary(s2.ddlr) : ""}
+要求：1) 结论先行：骨架方向对不对，在题眼下有哪几个关键错误；2) 逐条点评他的设计（像“原答案 → 评价 → 说明”）；3) 用题目里的例子走一遍他的设计，指出会在哪一步出问题、实际表现是什么；4) 还漏掉了哪些面试官一定会追问的点。和参考不同但成立的设计要肯定。
+只返回 JSON：{"overall": 6.5, "conclusion": "结论先行（2–3 句）", "dims": [{"key": "focus", "name": "需求与题眼", "score": 7, "comment": ""}, {"key": "services", "name": "服务划分", "score": 6, "comment": ""}, {"key": "data", "name": "数据模型", "score": 6, "comment": ""}, {"key": "states", "name": "状态机与并发", "score": 5, "comment": ""}, {"key": "flows", "name": "核心流程", "score": 6, "comment": ""}, {"key": "reliability", "name": "可靠性与扩展", "score": 5, "comment": ""}, {"key": "expression", "name": "表达与取舍", "score": 6, "comment": ""}], "items": [{"you": "他的某个设计点", "verdict": "对|方向对但不准|有错|搞反|缺失|最大扣分点", "why": "说明"}], "biggest": "最大扣分点（一句话）", "walkthrough": "用例子走一遍他的设计：哪一步会出问题", "will_ask": ["面试官一定会追问的点"], ${SD_COACH_JSON}}`, x.id, ["full"], "complex");
+    };
+    const fe = full.ev, fBox = h("div", { class: "stack sd-ai" });
+    if (SD_JOBS[fk]) fBox.append(pending("AI 架构师在通读你的整份设计……（大约 40–90 秒）"));
+    else if (full.err) fBox.append(errRow(full.err, askFull));
+    else if (fe) {
+      const dims = Array.isArray(fe.dims) ? fe.dims : [];
+      fBox.append(scoreLine(Number(fe.overall) || 0),
+        fe.conclusion ? h("div", { class: "callout blue" }, h("b", null, "结论先行　"), String(fe.conclusion)) : "",
+        dims.length ? h("div", { class: "stack", style: "gap:6px" }, dims.map(m => h("div", { class: "sd-crit" }, h("span", null, String(m.name || m.key), h("span", { class: "small faint" }, m.comment ? "　" + m.comment : "")), h("div", { class: "bar" }, h("i", { style: `width:${Math.max(0, Math.min(10, Number(m.score) || 0)) * 10}%` })), h("span", { class: "num small" }, String(m.score))))) : "",
+        fe.biggest ? h("div", { class: "callout" }, h("b", null, "最大扣分点　"), String(fe.biggest)) : "",
+        h("h3", null, "逐条点评"), verdictTable(fe.items),
+        fe.walkthrough ? h("div", null, h("h3", null, "用例子走一遍你的设计"), mdEl(String(fe.walkthrough), "small")) : "",
+        arrStr(fe.will_ask, 8).length ? h("div", null, h("h3", null, "面试官一定会追问"), sdList(arrStr(fe.will_ask, 8)),
+          h("button", { class: "btn sm", type: "button", onclick: () => sdTutorAsk(`你现在是这道系统设计题的面试官。基于我的设计和刚才的总评，从“面试官一定会追问”的点里挑最关键的一个开始追问我，一次只问一个问题；我回答后你点评（哪里想错了、更好的答法、下次怎么想），再接着追问下一个。`, "让 AI 面试官按我的设计追问") }, "让 AI 面试官按我的设计追问")) : "",
+        coachEl(fe));
+    }
+    const refAll = h("div", { class: "stack" });
+    const refAllBtn = h("button", { class: "btn ghost sm", type: "button" }, "看标准答案、例子推演和常见错误");
+    refAllBtn.addEventListener("click", () => { if (refAll.childNodes.length) { refAll.textContent = ""; return; } refAll.append(
+      h("div", { class: "sd-ref" }, h("div", { class: "eyebrow" }, "2 分钟口述版"), mdEl(x.oral)),
+      h("div", { class: "sd-ref" }, h("div", { class: "eyebrow" }, "用例子走一遍参考设计"), mdEl(x.walkthrough)),
+      h("div", null, h("h3", null, "常见错误答法逐条点评"), verdictTable(x.mistakes.map(m => ({ you: m.wrong, verdict: m.verdict, why: m.why }))) ),
+      h("details", { class: "qa sd-sec" }, h("summary", null, `进阶追问（${x.followups.length}）`), ...x.followups.map(f => { const e = h("details", { class: "qa" }, h("summary", null, f.q)); e.append(mdEl(f.a, "small")); return e; })),
+      h("div", null, h("h3", null, "同一套设计还能回答"), sdList(x.variants))); });
+    box.append(h("section", { class: "panel", id: "sys-full" }, h("div", { class: "spread" }, h("h2", null, "提交总评"), h("span", { class: "small faint" }, "至少写 3 节；用更强的模型通读整份设计")),
+      h("p", { class: "small muted" }, "结论先行 → 七个维度打分 → 逐条点评（对 / 方向对但不准 / 搞反 / 最大扣分点）→ 用例子走一遍你的设计 → 面试官必问点 → 查漏补缺。"),
+      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", disabled: !!SD_JOBS[fk], onclick: askFull }, fe ? "改完了，重新总评" : "提交整份设计，让 AI 架构师评审"), refAllBtn),
+      fBox, refAll));
+  };
+  SD_REDRAW = () => {
+    const ae = document.activeElement, id = ae && box.contains(ae) && ae.id;
+    const a = id && ae.selectionStart, b = id && ae.selectionEnd, y = window.scrollY;
+    draw();
+    window.scrollTo(0, y);
+    if (id) { const n = document.getElementById(id); if (n) { n.focus({ preventScroll: true }); try { n.setSelectionRange(a, b); } catch (e) { /* 不支持选区 */ } } }
+  };
+  onLeave(() => { SD_REDRAW = null; clearInterval(tick); });
+  draw();
+  return sdPage("sd-sys", x.title, x.brief, h("div", { class: "sd-grid" }, box, side));
+}
+function sysMarkdown(x, st) {
+  const d = st.d || {}, dg = st.dg || {}, sec = st.sec || {};
+  const out = [`# 系统设计：${x.title}`, "", x.statement, "", `**题眼**：${x.focus}`, ""];
+  x.sections.forEach((c, i) => {
+    out.push(`## ${i + 1}. ${c.title}`, "", d[c.key] || "（没写）", "");
+    if (c.key === "tables" && st.ddl) out.push("```sql", st.ddl, "```", "");
+    if (dg[c.key]) out.push("```mermaid", dg[c.key], "```", "");
+    const e = (sec[c.key] || {}).ev;
+    if (e) out.push(`> AI 评审 ${e.score} 分：${e.verdict || ""}`, ...(e.items || []).map(t => `> - ${t.you} —— **${t.verdict}**：${t.why}`), ...(arrStr(e.wrong, 5).map(t => `> - 想错了：${t}`)), "");
+  });
+  const f = (st.full || {}).ev;
+  if (f) out.push("## AI 总评", "", `**${f.overall} 分**　${f.conclusion || ""}`, "", f.biggest ? `**最大扣分点**：${f.biggest}` : "", "", ...(f.items || []).map(t => `- ${t.you} —— **${t.verdict}**：${t.why}`), "", f.walkthrough ? "**用例子走一遍**：" + f.walkthrough : "", "", ...arrStr(f.will_ask, 8).map(t => `- 必问：${t}`), "", ...arrStr(f.next_time, 6).map(t => `- 下次：${t}`), f.best_practice ? `- 最佳实践：${f.best_practice}` : "");
+  return out.join("\n");
 }

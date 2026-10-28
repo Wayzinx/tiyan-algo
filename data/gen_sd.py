@@ -72,10 +72,48 @@ def all_block_ids():
     for f in glob.glob(os.path.join(D, "sd", "*.py")): ids |= {b["id"] for b in load(f, "BLOCKS")}
     return ids
 EXTRA_FIELDS = ["pressure", "metrics", "choices"]
+# 系统设计实战：给需求，设计服务 / 表 / 接口 / 状态机 / 流程；参考 DDL 必须真能建表
+SYS_KEYS = ["clarify", "estimate", "services", "tables", "api", "states", "flows", "reliability"]
+SYS_DIAGRAM = {"services": ("flowchart", "graph"), "states": ("stateDiagram",), "flows": ("sequenceDiagram",)}
+VERDICTS = ["对", "方向对但不准", "有错", "搞反", "缺失", "最大扣分点"]
+def _harness():
+    spec = importlib.util.spec_from_file_location("harness", os.path.join(D, "harness.py")); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
+def check_system(x, errors):
+    xid = x.get("id", "?")
+    for k in ["id", "order", "title", "brief", "statement", "focus", "scale", "example", "minutes", "sections", "mistakes", "walkthrough", "oral", "followups", "variants"]:
+        if not x.get(k): errors.append(f"{xid} 缺字段 {k}")
+    if errors and errors[-1].startswith(xid + " 缺字段"): return
+    if not re.fullmatch(r"x\d{1,2}", xid): errors.append(f"{xid} id 应该是 x1、x2……")
+    for k, lo in [("statement", 200), ("focus", 20), ("scale", 40), ("example", 60), ("walkthrough", 200), ("oral", 300)]:
+        if len(x[k]) < lo: errors.append(f"{xid} {k} 太短（≥{lo} 字）")
+    if not (35 <= int(x["minutes"]) <= 60): errors.append(f"{xid} minutes 应在 35–60")
+    secs = x["sections"]
+    if [c.get("key") for c in secs] != SYS_KEYS: errors.append(f"{xid} sections 必须按顺序是 {SYS_KEYS}")
+    for c in secs:
+        k = c.get("key")
+        if not (c.get("title") and c.get("minutes") and c.get("prompt") and isinstance(c.get("points"), list) and 3 <= len(c["points"]) <= 8 and len(c.get("reference", "")) >= 300):
+            errors.append(f"{xid}/{k} 需要 title / minutes / prompt / points(3–8) / reference(≥300 字)")
+        if k in SYS_DIAGRAM and not str(c.get("diagram", "")).lstrip().startswith(SYS_DIAGRAM[k]): errors.append(f"{xid}/{k} 需要 diagram（Mermaid，以 {SYS_DIAGRAM[k]} 开头）")
+        if k == "tables":
+            ddl = c.get("ddl", "")
+            if ddl.upper().count("CREATE TABLE") < 4: errors.append(f"{xid}/tables 的 ddl 至少 4 张表")
+            else:
+                r = json.loads(_harness().check_ddl(ddl))
+                if not r["ok"]: errors.append(f"{xid}/tables 的 ddl 建表失败：{r['error']}\n转换后的语句：\n{r['converted'][:1500]}")
+                elif any(not any(i["unique"] or i["origin"] == "pk" for i in t["indexes"]) and not any(c2["pk"] for c2 in t["cols"]) for t in r["tables"]): errors.append(f"{xid}/tables 每张表都要有主键")
+    if sum(int(c.get("minutes") or 0) for c in secs) != int(x["minutes"]): errors.append(f"{xid} 各环节 minutes 之和应等于 minutes")
+    if not (4 <= len(x["mistakes"]) <= 8) or any(not (m.get("wrong") and m.get("verdict") in VERDICTS and len(m.get("why", "")) >= 30) for m in x["mistakes"]):
+        errors.append(f"{xid} mistakes 需要 4–8 个 {{wrong, verdict∈{VERDICTS}, why(≥30 字)}}")
+    if not (6 <= len(x["followups"]) <= 10) or any(not (f.get("q") and len(f.get("a", "")) >= 80) for f in x["followups"]): errors.append(f"{xid} followups 需要 6–10 个 {{q, a(≥80 字)}}")
+    if not (2 <= len(x["variants"]) <= 5): errors.append(f"{xid} variants 需要 2–5 个")
+    scan(x, xid, errors)
 errors = []
 if "--only" in sys.argv:
     p = os.path.join(D, sys.argv[sys.argv.index("--only") + 1])
     blocks, designs, extras = load(p, "BLOCKS"), load(p, "DESIGNS"), load(p, "EXTRAS") or {}
+    systems = load(p, "SYSTEMS")
+    for x in systems: check_system(x, errors)
+    if systems: print("系统设计题", [x.get("id") for x in systems])
     for b in blocks: check_block(b, errors)
     bids = all_block_ids()
     for d in designs: check_design(d, bids, errors)
@@ -85,9 +123,9 @@ if "--only" in sys.argv:
     for did, x in extras.items():
         if not any(d["id"] == did for d in designs): check_extras(did, x, errors)
     print(f"积木题 {len(blocks)}，设计题 {len(designs)}，压力追问 {len(extras) + sum(1 for d in designs if 'pressure' in d and d['id'] not in extras)}"); print("\n".join("ERROR " + e for e in errors) or "OK"); sys.exit(1 if errors else 0)
-blocks, designs, extras = [], [], {}
+blocks, designs, extras, systems = [], [], {}, []
 for f in sorted(glob.glob(os.path.join(D, "sd", "*.py"))):
-    blocks += load(f, "BLOCKS"); designs += load(f, "DESIGNS"); extras.update(load(f, "EXTRAS") or {})
+    blocks += load(f, "BLOCKS"); designs += load(f, "DESIGNS"); extras.update(load(f, "EXTRAS") or {}); systems += load(f, "SYSTEMS")
 toolbox = {}
 for f in sorted(glob.glob(os.path.join(D, "sd", "*.py"))):
     toolbox.update(load(f, "TOOLBOX") or {})
@@ -102,7 +140,9 @@ for d in designs:
     else: missing.append(d["id"])
 if missing: print("WARN 还没有压力追问 / 指标口径 / 技术选型：", missing)
 if toolbox: scan(toolbox, "toolbox", errors)
-print("积木题:", sorted(ids, key=lambda x: int(x[1:])), "设计题:", [d["id"] for d in designs])
+for x in systems: check_system(x, errors)
+if len({x["id"] for x in systems}) != len(systems): errors.append("系统设计题 id 重复")
+print("积木题:", sorted(ids, key=lambda x: int(x[1:])), "设计题:", [d["id"] for d in designs], "系统设计题:", [x.get("id") for x in systems])
 if errors: print("\n".join("ERROR " + e for e in errors)); sys.exit(1)
-json.dump({"blocks": sorted(blocks, key=lambda b: b["order"]), "designs": sorted(designs, key=lambda d: d["order"]), "toolbox": toolbox}, open(os.path.join(D, "sd.json"), "w"), ensure_ascii=False, separators=(",", ":"))
+json.dump({"blocks": sorted(blocks, key=lambda b: b["order"]), "designs": sorted(designs, key=lambda d: d["order"]), "toolbox": toolbox, "systems": sorted(systems, key=lambda x: x["order"])}, open(os.path.join(D, "sd.json"), "w"), ensure_ascii=False, separators=(",", ":"))
 print("OK -> sd.json")

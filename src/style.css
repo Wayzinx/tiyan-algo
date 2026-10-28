@@ -731,3 +731,19 @@ body.sd-tutor-open .sd-fab { display: none; }
 .sd-fields li { grid-template-columns: 150px minmax(0, 1fr); }
 @media (max-width: 720px) { .sd-fields li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 .sd-page .chip { max-width: 100%; white-space: normal; text-align: left; height: auto; }
+/* 系统设计实战 */
+.sd-code { font-family: var(--mono); font-size: 13px; line-height: 1.5; tab-size: 2; }
+.sd-pre { font: 12.5px/1.5 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; overflow: auto; max-height: 420px; white-space: pre; margin: 0; }
+.sd-mmd { overflow-x: auto; padding: 8px 0; }
+.sd-mmd svg { max-width: 100%; height: auto; }
+.sd-mmd-wrap:empty { display: none; }
+.sd-mmd-wrap { border: 1px dashed var(--line); border-radius: 8px; padding: 6px 10px; overflow-x: auto; }
+.sd-mmd-wrap svg { max-width: 100%; height: auto; }
+.sd-ddl { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.sd-ddl-t { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; background: var(--surface); }
+.sd-ddl-t .pill { font-size: 11px; padding: 0 6px; }
+.sd-ref { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; display: grid; gap: 8px; }
+.sd-verdicts td { vertical-align: top; font-size: 13.5px; }
+.sd-verdicts td:nth-child(2) { white-space: nowrap; }
+.sd-verdicts td:first-child { min-width: 160px; }
+.sd-sys-sec { scroll-margin-top: calc(var(--top) + 12px); }

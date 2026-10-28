@@ -414,3 +414,70 @@ def _fmt_exc(e):
     if isinstance(e, SyntaxError):
         where = "（第 %s 行：%s）" % (e.lineno, (e.text or "").strip())
     return "%s: %s%s" % (type(e).__name__, e, where)
+
+
+# ---------- 系统设计：检查建表语句（MySQL 风格先转成 SQLite 再真正建一遍）----------
+def _ddl_to_sqlite(ddl):
+    import re
+    s = ddl.replace("`", '"')
+    s = re.sub(r"--[^\n]*", "", s)
+    s = re.sub(r"/\*.*?\*/", "", s, flags=re.S)
+    s = re.sub(r"\bCOMMENT\s*=?\s*'(?:[^'\\]|\\.|'')*'", "", s, flags=re.I)
+    s = re.sub(r"\bENGINE\s*=\s*\w+|\b(DEFAULT\s+)?(CHARSET|CHARACTER\s+SET)\s*=?\s*\w+|\bCOLLATE\s*=?\s*\w+|\bROW_FORMAT\s*=\s*\w+", "", s, flags=re.I)
+    s = re.sub(r"\bAUTO_INCREMENT\s*=\s*\d+", "", s, flags=re.I)
+    s = re.sub(r"\bAUTO_INCREMENT\b|\bUNSIGNED\b|\bON\s+UPDATE\s+CURRENT_TIMESTAMP(\(\d*\))?", "", s, flags=re.I)
+    s = re.sub(r"\bENUM\s*\([^)]*\)|\bSET\s*\('[^)]*\)", "TEXT", s, flags=re.I)
+    s = re.sub(r"\b(CURRENT_TIMESTAMP|NOW)\s*\(\s*\d*\s*\)", "CURRENT_TIMESTAMP", s, flags=re.I)
+    out, extra, i = [], [], 0
+    head = re.compile(r"CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?(\"?[\w.]+\"?)\s*\(", re.I)
+    while True:
+        m = head.search(s, i)
+        if not m:
+            out.append(s[i:]); break
+        out.append(s[i:m.end()])
+        depth, j = 1, m.end()
+        while j < len(s) and depth:
+            depth += {"(": 1, ")": -1}.get(s[j], 0); j += 1
+        body, table = s[m.end():j - 1], m.group(2).strip('"')
+        parts, cur, d = [], "", 0
+        for ch in body:
+            if ch == "(": d += 1
+            if ch == ")": d -= 1
+            if ch == "," and d == 0: parts.append(cur); cur = ""
+            else: cur += ch
+        parts.append(cur)
+        keep = []
+        for p in parts:
+            k = re.match(r"\s*(UNIQUE\s+|FULLTEXT\s+|SPATIAL\s+)?(KEY|INDEX)\s+(\"?\w+\"?)?\s*\((.*)\)\s*$", p, re.I | re.S)
+            k2 = re.match(r"\s*UNIQUE\s*\(", p, re.I)
+            if k:
+                cols = re.sub(r"\(\d+\)", "", k.group(4))
+                name = (k.group(3) or "idx_%s_%d" % (table, len(extra))).strip('"')
+                extra.append('CREATE %sINDEX "%s_%s" ON "%s"(%s);' % ("UNIQUE " if (k.group(1) or "").strip().upper() == "UNIQUE" else "", table, name, table, cols))
+            elif k2 or p.strip():
+                keep.append(p)
+        out.append(",".join(keep) + ")")
+        i = j
+    s = "".join(out)
+    s = re.sub(r"\)\s*[^;()]*;", ");", s)          # 去掉表选项残留
+    return s + "\n" + "\n".join(extra)
+
+
+def check_ddl(ddl):
+    """返回表、列、主键、索引；失败时给出 SQLite 的报错和转换后的语句。"""
+    import sqlite3
+    conv = _ddl_to_sqlite(ddl)
+    con = sqlite3.connect(":memory:")
+    try:
+        con.executescript(conv)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": "%s: %s" % (type(e).__name__, e), "converted": conv[:4000]}, ensure_ascii=False)
+    tables = []
+    for (name,) in con.execute("select name from sqlite_master where type='table' and name not like 'sqlite_%' order by rowid"):
+        cols = [dict(name=r[1], type=r[2], notnull=bool(r[3]), pk=bool(r[5])) for r in con.execute('pragma table_info("%s")' % name)]
+        idx = []
+        for r in con.execute('pragma index_list("%s")' % name):
+            cs = [x[2] for x in con.execute('pragma index_info("%s")' % r[1])]
+            idx.append(dict(name=r[1].replace(name + "_", "", 1), unique=bool(r[2]), cols=cs, origin=r[3]))
+        tables.append(dict(name=name, cols=cols, indexes=idx))
+    return json.dumps({"ok": True, "tables": tables}, ensure_ascii=False)
