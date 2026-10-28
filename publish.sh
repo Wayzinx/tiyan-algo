@@ -5,8 +5,8 @@ cd "$(dirname "$0")"
 python3 build.py
 git add -A
 git commit -qm "${1:-更新 $(date "+%Y-%m-%d %H:%M")}" || true
-git push -q origin main
+git -c http.postBuffer=157286400 push -q origin main
 git subtree split --prefix public -b gh-pages-build >/dev/null
-git push -fq origin gh-pages-build:gh-pages
+git -c http.postBuffer=157286400 push -fq origin gh-pages-build:gh-pages
 git branch -D gh-pages-build >/dev/null
 echo "已发布，1–2 分钟后生效。"
