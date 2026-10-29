@@ -37,7 +37,8 @@ const Buddy = {
     this.root = h("div", { class: "bd-root" + (LS.get("tiyan:buddy:hidden", false) ? " tucked" : "") });
     // 宠物本体
     this.pet = h("button", { class: "bd-pet", type: "button", title: "小眼：点我聊天；选中页面文字可以直接问我", "aria-label": "打开小眼" });
-    this.pet.innerHTML = BUDDY_PET;
+    this.petArt = h("span", { class: "bd-art" });
+    this.pet.append(this.petArt);
     this.badge = h("span", { class: "bd-badge", hidden: true });
     this.say = h("div", { class: "bd-say", hidden: true });
     this.tab = h("button", { class: "bd-tab", type: "button", title: "叫出小眼", onclick: () => this.tuck(false) }, "👀");
@@ -74,11 +75,12 @@ const Buddy = {
     this.chat.ta.addEventListener("paste", e => this.onPaste(e));
     this.whereEl = h("span", { class: "small faint bd-where" });
     this.panel = h("section", { class: "bd-panel", hidden: true, "aria-label": "小眼" },
-      h("div", { class: "bd-head" }, h("span", { class: "bd-mini", html: BUDDY_PET }), h("div", { class: "stack", style: "gap:0;min-width:0;flex:1" }, h("b", null, "小眼 · 学习搭子"), this.whereEl),
+      h("div", { class: "bd-head" }, this.mini = h("span", { class: "bd-mini" }), h("div", { class: "stack", style: "gap:0;min-width:0;flex:1" }, h("b", null, "小眼 · 学习搭子"), this.whereEl),
+        h("button", { class: "btn ghost sm", type: "button", title: "换成你自己的图片（只存在这台电脑的浏览器里）", onclick: () => { this.skin.hidden = !this.skin.hidden; } }, "换形象"),
         h("button", { class: "btn ghost sm", type: "button", title: "清空和小眼的对话", onclick: () => this.reset() }, "新对话"),
         h("button", { class: "btn ghost sm", type: "button", title: "把小眼收到屏幕边上", onclick: () => this.tuck(true) }, "藏起来"),
         h("button", { class: "btn ghost sm bd-x", type: "button", "aria-label": "关闭", onclick: () => this.toggle(false) }, "✕")),
-      this.chat.el);
+      this.skinBar(), this.chat.el);
     this.panel.addEventListener("dragover", e => { if ([...(e.dataTransfer.items || [])].some(i => i.kind === "file")) { e.preventDefault(); this.panel.classList.add("drop"); } });
     this.panel.addEventListener("dragleave", e => { if (!this.panel.contains(e.relatedTarget)) this.panel.classList.remove("drop"); });
     this.panel.addEventListener("drop", e => { e.preventDefault(); this.panel.classList.remove("drop"); for (const f of e.dataTransfer.files) if (/^image\//.test(f.type)) this.addImage(f); });
@@ -89,12 +91,54 @@ const Buddy = {
       h("button", { type: "button", onclick: () => this.fromSel("quiz") }, "考我"));
     this.sel.addEventListener("mousedown", e => e.preventDefault());
     this.root.append(this.panel, this.say, this.pet, this.tab, this.sel);
+    this.applyAvatar();
     document.body.append(this.root);
     this.drag();
     this.place();
     this.renderActions();
     this.listen();
     if (!LS.get("tiyan:buddy:greeted", false)) setTimeout(() => { this.talk("我是小眼～ 选中页面上的任何文字就能问我，也可以截图给我 👀", 9000); LS.set("tiyan:buddy:greeted", true); }, 1800);
+  },
+  // ----- 换形象：用户自己的图片只存在本机浏览器（localStorage），不上传、不进仓库 -----
+  skinBar() {
+    const file = h("input", { type: "file", accept: "image/png,image/jpeg,image/gif,image/webp,image/svg+xml", hidden: true });
+    file.addEventListener("change", () => { const f = file.files[0]; file.value = ""; if (f) this.setAvatar(f); });
+    this.skin = h("div", { class: "bd-skin", hidden: true },
+      h("div", { class: "small" }, "上传一张图片当小眼的形象。图片只保存在这台电脑的浏览器里，不会上传，也不会出现在网站上给别人看。PNG / GIF 建议用透明背景、正方形。"),
+      h("div", { class: "row" }, h("button", { class: "btn sm primary", type: "button", onclick: () => file.click() }, "上传图片"),
+        h("button", { class: "btn sm ghost", type: "button", onclick: () => { LS.del("tiyan:buddy:avatar"); this.applyAvatar(); toast("换回默认的小眼了"); } }, "恢复默认"), file));
+    return this.skin;
+  },
+  applyAvatar() {
+    const url = LS.get("tiyan:buddy:avatar", "");
+    for (const el of [this.petArt, this.mini]) {
+      if (!el) continue;
+      el.textContent = "";
+      if (url) { const im = new Image(); im.className = "bd-img"; im.alt = ""; im.draggable = false; im.src = url; el.append(im); }
+      else el.innerHTML = BUDDY_PET;
+    }
+    this.root.classList.toggle("custom", !!url);
+  },
+  async setAvatar(f) {
+    if (!/^image\/(png|jpeg|gif|webp|svg\+xml)$/.test(f.type)) { toast("支持 PNG / JPG / GIF / WebP / SVG"); return; }
+    let url;
+    try {
+      if (f.type === "image/gif" || f.type === "image/svg+xml") {     // 动图和矢量图原样保存（重新编码会丢动画）
+        if (f.size > 1500000) { toast("GIF / SVG 请小于 1.5MB"); return; }
+        url = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
+      } else {                                                          // 其他图片缩到 320px，保留透明背景
+        const src = URL.createObjectURL(f);
+        const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+        const k = Math.min(1, 320 / Math.max(im.naturalWidth, im.naturalHeight, 1)), c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(im.naturalWidth * k)); c.height = Math.max(1, Math.round(im.naturalHeight * k));
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(src);
+        url = c.toDataURL("image/png");
+      }
+    } catch (e) { toast("这张图读不出来，换一张试试"); return; }
+    LS.set("tiyan:buddy:avatar", url);
+    if (LS.get("tiyan:buddy:avatar", "") !== url) { toast("图片太大，浏览器存不下，换小一点的"); return; }
+    this.applyAvatar(); this.skin.hidden = true; this.hop();
+    toast("换好了，只有这台电脑的浏览器能看到");
   },
   // ----- 上下文：页面专属（设计编码会注册自己的老师上下文）或通用页面内容 -----
   provide(p) { this.provider = p; this.renderActions(); this.refresh(); },
