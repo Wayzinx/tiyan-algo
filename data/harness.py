@@ -481,3 +481,143 @@ def check_ddl(ddl):
             idx.append(dict(name=r[1].replace(name + "_", "", 1), unique=bool(r[2]), cols=cs, origin=r[3]))
         tables.append(dict(name=name, cols=cols, indexes=idx))
     return json.dumps({"ok": True, "tables": tables}, ensure_ascii=False)
+
+
+# ---------- 全栈 · SQL 专项：SQLite 里补上常用 MySQL 函数，比较结果集，检查执行计划 ----------
+SQL_TODAY = "2026-06-30"
+def _sql_conn():
+    import sqlite3, datetime
+    con = sqlite3.connect(":memory:")
+    def dt(x):
+        if x is None: return None
+        if isinstance(x, (int, float)): return datetime.datetime.fromtimestamp(x, datetime.timezone.utc).replace(tzinfo=None)
+        s = str(x).strip().replace("T", " ")
+        for f in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try: return datetime.datetime.strptime(s[:19] if f.endswith("%S") else s[:len(datetime.datetime(2000, 1, 1).strftime(f))], f)
+            except ValueError: pass
+        return None
+    MY = {"%Y": "%Y", "%y": "%y", "%m": "%m", "%d": "%d", "%H": "%H", "%i": "%M", "%s": "%S", "%S": "%S", "%M": "%B", "%b": "%b", "%W": "%A", "%a": "%a", "%j": "%j", "%p": "%p", "%T": "%H:%M:%S", "%%": "%"}
+    def date_format(x, f):
+        d = dt(x)
+        if d is None or f is None: return None
+        out, i = "", 0
+        while i < len(f):
+            k = f[i:i + 2]
+            if k in MY: out += d.strftime(MY[k]); i += 2
+            elif k == "%c": out += str(d.month); i += 2
+            elif k == "%e": out += str(d.day); i += 2
+            else: out += f[i]; i += 1
+        return out
+    def datediff(a, b):
+        x, y = dt(a), dt(b)
+        return None if x is None or y is None else (x.date() - y.date()).days
+    def concat(*a): return None if any(v is None for v in a) else "".join(str(v) for v in a)
+    def concat_ws(sep, *a): return None if sep is None else str(sep).join(str(v) for v in a if v is not None)
+    fns = [("IF", 3, lambda c, a, b: a if c else b), ("DATE_FORMAT", 2, date_format), ("DATEDIFF", 2, datediff),
+           ("NOW", 0, lambda: SQL_TODAY + " 23:59:59"), ("CURDATE", 0, lambda: SQL_TODAY), ("CURRENT_DATE", 0, lambda: SQL_TODAY),
+           ("CONCAT", -1, concat), ("CONCAT_WS", -1, concat_ws),
+           ("LEFT", 2, lambda s, n: None if s is None else str(s)[:int(n)]), ("RIGHT", 2, lambda s, n: None if s is None else (str(s)[-int(n):] if int(n) else "")),
+           ("GREATEST", -1, lambda *a: None if any(v is None for v in a) else max(a)), ("LEAST", -1, lambda *a: None if any(v is None for v in a) else min(a)),
+           ("UNIX_TIMESTAMP", 1, lambda x: None if dt(x) is None else int(dt(x).replace(tzinfo=datetime.timezone.utc).timestamp())),
+           ("FROM_UNIXTIME", 1, lambda x: None if x is None else datetime.datetime.fromtimestamp(int(x), datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
+           ("YEAR", 1, lambda x: None if dt(x) is None else dt(x).year), ("MONTH", 1, lambda x: None if dt(x) is None else dt(x).month),
+           ("DAY", 1, lambda x: None if dt(x) is None else dt(x).day), ("HOUR", 1, lambda x: None if dt(x) is None else dt(x).hour)]
+    for name, n, f in fns: con.create_function(name, n, f, deterministic=True)
+    return con
+
+
+def _sql_setup(ddl, seed):
+    con = _sql_conn()
+    con.executescript(_ddl_to_sqlite(ddl) if ("ENGINE" in ddl.upper() or "COMMENT" in ddl.upper() or "`" in ddl) else ddl)
+    if seed: con.executescript(seed)
+    return con
+
+
+def _sql_norm(v):
+    if isinstance(v, bool): return int(v)
+    if isinstance(v, (int, float)): return round(float(v), 4)
+    if isinstance(v, bytes): return v.hex()
+    return v
+
+
+def _sql_exec(con, sql):
+    sql = sql.strip().rstrip(";").strip()
+    if not sql: raise ValueError("没有写 SQL")
+    if ";" in sql.replace("';'", ""):
+        parts = [p for p in sql.split(";") if p.strip()]
+        for p in parts[:-1]: con.execute(p)
+        sql = parts[-1]
+    t0 = time.time()
+    cur = con.execute(sql)
+    cols = [c[0] for c in (cur.description or [])]
+    rows = cur.fetchmany(2001)
+    return cols, rows, int((time.time() - t0) * 1000)
+
+
+def run_sql(ddl, seed, user_sql, ref_sql, ordered):
+    """在同一份数据上分别跑学习者和参考 SQL，比较结果集（列名不比，列数和值要一致；ordered 时顺序也要一致）。"""
+    out = {"ok": False}
+    try:
+        con = _sql_setup(ddl, seed)
+        rc, rr, _ = _sql_exec(con, ref_sql)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": "参考答案运行失败：%s" % e}, ensure_ascii=False)
+    try:
+        con2 = _sql_setup(ddl, seed)
+        uc, ur, ms = _sql_exec(con2, user_sql)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": "%s: %s" % (type(e).__name__, e), "ref_columns": rc, "ref_rows": [list(map(_sql_norm, r)) for r in rr[:50]]}, ensure_ascii=False)
+    U = [tuple(_sql_norm(v) for v in r) for r in ur]
+    R = [tuple(_sql_norm(v) for v in r) for r in rr]
+    key = lambda t: tuple((0, "") if v is None else (1, v) if isinstance(v, float) else (2, str(v)) for v in t)
+    same_cols = len(uc) == len(rc)
+    match = same_cols and (U == R if ordered else sorted(U, key=key) == sorted(R, key=key))
+    hint = ""
+    if not same_cols: hint = "列数不对：你返回 %d 列，期望 %d 列" % (len(uc), len(rc))
+    elif len(U) != len(R): hint = "行数不对：你返回 %d 行，期望 %d 行" % (len(U), len(R))
+    elif not match and ordered and sorted(U, key=key) == sorted(R, key=key): hint = "数据都对，但顺序不对（这题要求排序）"
+    elif not match: hint = "行数对，但有值不一样"
+    out.update(ok=True, match=match, hint=hint, ms=ms, columns=uc, rows=[list(map(_sql_norm, r)) for r in ur[:50]], total=len(ur),
+               ref_columns=rc, ref_rows=[list(map(_sql_norm, r)) for r in rr[:50]], ref_total=len(rr))
+    return json.dumps(out, ensure_ascii=False)
+
+
+def _plan(con, query, table):
+    rows = con.execute("EXPLAIN QUERY PLAN " + query.strip().rstrip(";")).fetchall()
+    detail = [r[-1] for r in rows]
+    t = table.lower()
+    mine = [d for d in detail if (" " + t + " ") in (" " + d.lower() + " ") or d.lower().endswith(" " + t)]
+    scan = any(d.upper().startswith("SCAN") and "INDEX" not in d.upper() for d in mine)
+    uses = any(("USING INDEX" in d.upper() or "USING COVERING INDEX" in d.upper() or "USING INTEGER PRIMARY KEY" in d.upper() or "USING PRIMARY KEY" in d.upper()) for d in mine)
+    return detail, scan, uses
+
+
+def run_index(ddl, seed, index_sql, query, table):
+    """先看原始执行计划，再执行学习者的建索引语句，看目标表是否从全表扫描变成走索引。"""
+    try:
+        con = _sql_setup(ddl, seed)
+        before, b_scan, b_uses = _plan(con, query, table)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": "题目数据有问题：%s" % e}, ensure_ascii=False)
+    try:
+        if index_sql.strip(): con.executescript(index_sql)
+        after, a_scan, a_uses = _plan(con, query, table)
+        idx = [dict(name=r[1], cols=[x[2] for x in con.execute('pragma index_info("%s")' % r[1])]) for r in con.execute('pragma index_list("%s")' % table) if not r[1].startswith("sqlite_autoindex")]
+    except Exception as e:
+        return json.dumps({"ok": False, "error": "%s: %s" % (type(e).__name__, e), "before": before}, ensure_ascii=False)
+    return json.dumps({"ok": True, "before": before, "after": after, "before_scan": b_scan, "after_scan": a_scan, "uses_index": a_uses and not a_scan, "indexes": idx}, ensure_ascii=False)
+
+
+def sql_peek(ddl, seed):
+    """数据集预览：每张表的列、行数和前 5 行。"""
+    try:
+        con = _sql_setup(ddl, seed)
+        out = []
+        for (t,) in con.execute("select name from sqlite_master where type='table' and name not like 'sqlite_%' order by rowid"):
+            cols = [r[1] + (" " + r[2] if r[2] else "") for r in con.execute('pragma table_info("%s")' % t)]
+            n = con.execute('select count(*) from "%s"' % t).fetchone()[0]
+            rows = [list(map(_sql_norm, r)) for r in con.execute('select * from "%s" limit 5' % t)]
+            out.append(dict(name=t, cols=cols, count=n, rows=rows))
+        return json.dumps({"ok": True, "tables": out}, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"ok": False, "error": str(e)}, ensure_ascii=False)

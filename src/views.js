@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["sd", "设计编码"], ["cap", "项目实战"], ["mock", "模拟面试"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["sd", "设计编码"], ["fs", "全栈"], ["cap", "项目实战"], ["mock", "模拟面试"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -13,6 +13,8 @@ function parseRoute() {
   if (t === "cap") return { view: "caps" };
   if (t === "sd") return { view: "sd", sub: "" };
   if (t.startsWith("sd-")) return { view: "sd", sub: t.slice(3) };
+  if (t === "fs") return { view: "fs", sub: "" };
+  if (t.startsWith("fs-")) return { view: "fs", sub: t.slice(3) };
   if (t === "data") return { view: "data" };
   if (t.startsWith("cap-")) { const [id, mid] = t.slice(4).split("--"); return { view: "cap", id, mid }; }
   return { view: "home" };
@@ -71,7 +73,7 @@ function updateChips() {
   const ai = { unknown: ["load", "AI 连接中"], ready: ["ok", "AI 老师在线"], off: ["bad", "AI 服务未连接"], nokey: ["warn", "未配置 DeepSeek"], locked: ["warn", "AI 需要密码"], needkey: ["warn", "填写 DeepSeek key"] }[S.ai] || ["warn", "AI 未连接"];
   const st = S.store === "db" ? ["ok", "进度云端同步"] : ["ok", "进度存在本浏览器"];
   for (const [cls, text, title] of [[...py, S.py === "failed" ? "判题会改用 AI 推演。原因：" + Py.error : "代码在你的浏览器里真实运行"], [...ai, AI.model ? `DeepSeek：对话用 ${AI.model}，出题和动画用 ${AI.pro}` : "AI 老师由 DeepSeek 驱动"], [...st, "换浏览器或换设备时，在「复习」页导出 / 导入进度"]]) {
-    const chip = h("span", { class: "schip " + cls, title }, h("i"), text);
+    const chip = h("span", { class: "schip " + cls, title: text + "：" + title, "aria-label": text }, h("i"), h("span", { class: "schip-t" }, text));
     if (AI.mode === "direct" && text === ai[1]) {
       chip.setAttribute("role", "button"); chip.tabIndex = 0; chip.style.cursor = "pointer"; chip.title = "设置 DeepSeek API key";
       chip.addEventListener("click", openKeyDialog);
@@ -502,4 +504,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };

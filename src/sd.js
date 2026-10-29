@@ -878,7 +878,7 @@ async function checkDDL(ddl) {
 }
 const VERDICT_CLS = { "对": "passed", "方向对但不准": "trying", "有错": "due", "搞反": "due", "缺失": "todo", "最大扣分点": "due" };
 function verdictTable(items) {
-  const arr = (Array.isArray(items) ? items : []).slice(0, 12);
+  const arr = (Array.isArray(items) ? items : []).filter(x => x && (x.you || x.why)).slice(0, 12);
   if (!arr.length) return "";
   return h("div", { class: "scroll-x" }, h("table", { class: "ptable sd-verdicts" }, h("thead", null, h("tr", null, ["你的设计", "评价", "说明"].map(x => h("th", null, x)))),
     h("tbody", null, arr.map(x => h("tr", null, h("td", null, String(x.you || "")), h("td", null, h("span", { class: "pill " + (VERDICT_CLS[x.verdict] || "todo") }, String(x.verdict || ""))), h("td", null, String(x.why || "")))))));

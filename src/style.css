@@ -642,14 +642,15 @@ select.btn { padding-right: 8px; }
 .site-foot { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 8px 40px; display: flex; gap: 8px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-3); }
 .site-foot a { color: var(--ink-2); }
 .cap-row { grid-template-columns: 74px minmax(0, 1fr) 80px 64px 150px; }
-@media (max-width: 760px) {
+/* 导航有 12 项：1100px 以下收进菜单按钮，避免横向滚动看不到后面的入口 */
+@media (max-width: 1100px) {
   .menu-btn { display: inline-flex; }
   .topbar-in { position: relative; }
   .nav { display: none; }
   .nav.open { display: flex; flex-direction: column; position: absolute; top: var(--top); left: 0; right: 0; background: var(--paper); border-bottom: 1px solid var(--line); padding: 8px 16px 12px; box-shadow: var(--shadow); z-index: 40; gap: 2px; }
   .nav.open a { padding: 10px 12px; }
-  .brand-mark { font-size: 24px; }
 }
+@media (max-width: 760px) { .brand-mark { font-size: 24px; } }
 
 /* ---------- 设计编码 ---------- */
 .sd-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
@@ -815,3 +816,41 @@ select.btn { padding-right: 8px; }
 }
 @media (prefers-reduced-motion: reduce) { .bd-bod, .bd-eye, .bd-z { animation: none !important; } }
 @media print { .bd-root { display: none !important; } }
+
+/* ---------- 全栈 ---------- */
+.fs-mttr { font: 600 28px/1.1 var(--serif); }
+.fs-mttr.over { color: var(--red); }
+.fs-checks { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; }
+.fs-check { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13.5px; }
+.fs-check:hover:not(:disabled) { border-color: var(--accent); }
+.fs-check.on { opacity: .55; cursor: default; }
+.fs-check small { color: var(--ink-3); }
+.fs-kind { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.fs-timeline { display: grid; gap: 12px; }
+.fs-ev { border-left: 3px solid var(--line); padding: 2px 0 2px 12px; display: grid; gap: 6px; scroll-margin-top: calc(var(--top) + 20px); }
+.fs-ev .md pre { max-height: 360px; overflow: auto; }
+.fs-ans { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.fs-ans .card-f.wide { grid-column: 1 / -1; }
+.fs-ref-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.fs-res td, .fs-res th { font: 12.5px/1.4 var(--mono); white-space: nowrap; }
+.fs-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.fs-cards .hub h3 { margin: 0; }
+.fs-pro h3 { color: var(--green); }
+.fs-con h3 { color: var(--red); }
+.fs-codeview { font: 13px/1.55 var(--mono); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 8px 0; overflow-x: auto; }
+.fs-line { display: grid; grid-template-columns: 44px max-content; white-space: pre; }
+.fs-line code { font: inherit; padding-right: 14px; }
+.fs-ln { color: var(--ink-3); text-align: right; padding-right: 12px; user-select: none; }
+.fs-line.mark.sev { background: var(--red-soft); }
+.fs-line.mark.mid { background: var(--amber-soft, #f6ecd2); }
+.fs-line.mark.low { background: var(--accent-soft); }
+.fs-hand { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 18px; align-items: start; }
+.fs-editor .CodeMirror { height: auto; min-height: 320px; border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; }
+.quiz-opt.picked { border-color: var(--accent); background: var(--accent-soft); }
+@media (max-width: 900px) { .fs-hand { grid-template-columns: minmax(0, 1fr); } }
+.fs-hand .stack { grid-template-columns: minmax(0, 1fr); }
+.fs-editor { min-width: 0; }
+
+/* 导航变长后：中等宽度下“正常”状态只留圆点，需要处理的状态仍显示文字 */
+@media (max-width: 1360px) and (min-width: 1101px) { .schip.ok .schip-t { display: none; } .schip.ok { padding: 6px; } .nav a { padding: 6px 10px; } }
+@media (max-width: 1280px) and (min-width: 1101px) { .nav a { padding: 6px 7px; font-size: 13.5px; } .brand small, .brand-sub { display: none; } }
