@@ -14,20 +14,46 @@ const BUDDY_ACTIONS = [
   ["考考我", "根据我现在看的这一页，出一道最可能在面试里被问到的题考我。只出题，等我回答后再点评：哪里想错了、更好的答法、下次怎么想。"],
   ["总结成速记卡", "把这一页总结成一张能背下来的速记卡：核心概念、关键数字或公式、易错点、面试一句话答法。"],
 ];
-const BUDDY_PET = `<svg viewBox="0 0 72 72" aria-hidden="true">
-  <ellipse class="bd-shadow" cx="36" cy="67" rx="17" ry="3"/>
-  <g class="bd-bod">
-    <path class="bd-tuft" d="M33 9c1-5 5-7 9-6-3 1-5 3-5 6"/>
-    <path class="bd-body" d="M36 8c15 0 27 11 27 28 0 17-11 27-27 27S9 53 9 36C9 19 21 8 36 8z"/>
-    <ellipse class="bd-blush" cx="19" cy="44" rx="4.5" ry="2.6"/><ellipse class="bd-blush" cx="53" cy="44" rx="4.5" ry="2.6"/>
-    <g class="bd-eyes">
-      <g class="bd-eye"><ellipse class="bd-white" cx="27" cy="34" rx="7" ry="8"/><circle class="bd-pupil" cx="27" cy="35" r="3.6"/><circle class="bd-shine" cx="28.4" cy="33.2" r="1.1"/></g>
-      <g class="bd-eye"><ellipse class="bd-white" cx="45" cy="34" rx="7" ry="8"/><circle class="bd-pupil" cx="45" cy="35" r="3.6"/><circle class="bd-shine" cx="46.4" cy="33.2" r="1.1"/></g>
+// 形象：渐变圆角底板里一只瓷白团子，戴像素墨镜，两侧小圆手，右上角一颗像素闪光；腮红和小嘴是小眼自己的
+const BD_SHADES = [
+  "###################",
+  ".##oo###...##oo###.",
+  ".#######...#######.",
+  "..#####.....#####..",
+  "...###.......###...",
+];
+const BD_SPARK = ["...#...", "...#...", "..###..", "#######", "..###..", "...#...", "...#..."];
+function bdPixels(grid, x0, y0, s, cls) {   // 同色像素合成一条 path，避免方块之间的抗锯齿细缝
+  const d = { "#": "", o: "" };
+  grid.forEach((row, y) => [...row].forEach((c, x) => { if (d[c] != null) d[c] += `M${(x0 + x * s).toFixed(2)} ${(y0 + y * s).toFixed(2)}h${s}v${s}h-${s}Z`; }));
+  return (d["#"] ? `<path class="${cls}" d="${d["#"]}"/>` : "") + (d.o ? `<path class="${cls}-o" d="${d.o}"/>` : "");
+}
+function buddyPet(u) {   // u：每个实例自己的 id 前缀（同一页面里画两份，渐变 / 裁剪不能串）
+  return `<svg viewBox="0 0 64 64" aria-hidden="true"><defs>
+    <linearGradient id="${u}t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#beb3ff"/><stop offset=".55" stop-color="#7f8cff"/><stop offset="1" stop-color="#55c8f1"/></linearGradient>
+    <radialGradient id="${u}b" cx=".36" cy=".2" r=".95"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#f3f4fb"/><stop offset="1" stop-color="#d3d7ea"/></radialGradient>
+    <radialGradient id="${u}h" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5d9eb"/></radialGradient>
+    <clipPath id="${u}c"><rect x="3" y="3" width="58" height="58" rx="16"/></clipPath>
+    <clipPath id="${u}s">${bdPixels(BD_SHADES, 13, 31, 2, "x")}</clipPath>
+  </defs>
+  <rect x="3" y="3" width="58" height="58" rx="16" fill="url(#${u}t)"/>
+  <rect x="3.5" y="3.5" width="57" height="57" rx="15.5" fill="none" stroke="#fff" stroke-opacity=".2"/>
+  <g class="bd-star">${bdPixels(BD_SPARK, 45.5, 6.5, 1.35, "bd-sp")}</g>
+  <g clip-path="url(#${u}c)"><g class="bd-bod">
+    <path d="M9.5 74V63C8 35 17 17.5 32 17.5C47 17.5 56 35 54.5 63V74Z" fill="url(#${u}b)"/>
+    <ellipse class="bd-gloss" cx="24" cy="25.5" rx="6.5" ry="2.8" transform="rotate(-24 24 25.5)"/>
+    <g class="bd-face">
+      <ellipse class="bd-blush" cx="17.5" cy="45" rx="3.3" ry="1.9"/><ellipse class="bd-blush" cx="46.5" cy="45" rx="3.3" ry="1.9"/>
+      <path class="bd-mouth" d="M29.6 46.4q2.4 2.3 4.8 0"/>
+      <g class="bd-shades">${bdPixels(BD_SHADES, 13, 31, 2, "bd-px")}<g clip-path="url(#${u}s)"><g class="bd-sheen"><rect x="4" y="26" width="3.4" height="18" transform="skewX(-28)"/><rect x="9.2" y="26" width="1.5" height="18" transform="skewX(-28)"/></g></g></g>
     </g>
-    <path class="bd-mouth" d="M32 47q4 4 8 0"/>
-  </g>
-  <text class="bd-z" x="54" y="14">z</text>
+    <circle class="bd-hand bd-hand-l" cx="10.6" cy="47.5" r="4.3" fill="url(#${u}h)"/>
+    <circle class="bd-hand bd-hand-r" cx="53.4" cy="47.5" r="4.3" fill="url(#${u}h)"/>
+  </g></g>
+  <g class="bd-think"><rect x="4.5" y="4.5" width="18" height="9.5" rx="4.75"/><circle cx="9" cy="17" r="1.7"/><circle class="bd-d" cx="9.3" cy="9.25" r="1.35"/><circle class="bd-d" cx="13.5" cy="9.25" r="1.35"/><circle class="bd-d" cx="17.7" cy="9.25" r="1.35"/></g>
+  <text class="bd-z" x="49" y="17">z</text>
 </svg>`;
+}
 const Buddy = {
   open: false, provider: null, quote: null, att: [], lib: null, unread: false, idleAt: Date.now(),
   init() {
@@ -111,12 +137,12 @@ const Buddy = {
   },
   applyAvatar() {
     const url = LS.get("tiyan:buddy:avatar", "");
-    for (const el of [this.petArt, this.mini]) {
-      if (!el) continue;
+    [[this.petArt, "bdp"], [this.mini, "bdm"]].forEach(([el, u]) => {
+      if (!el) return;
       el.textContent = "";
       if (url) { const im = new Image(); im.className = "bd-img"; im.alt = ""; im.draggable = false; im.src = url; el.append(im); }
-      else el.innerHTML = BUDDY_PET;
-    }
+      else el.innerHTML = buddyPet(u);
+    });
     this.root.classList.toggle("custom", !!url);
   },
   async setAvatar(f) {
@@ -172,7 +198,7 @@ const Buddy = {
     this.open = v == null ? !this.open : v;
     this.panel.hidden = !this.open;
     this.root.classList.toggle("opened", this.open);
-    if (this.open) { this.tuck(false); this.unread = false; this.badge.hidden = true; this.say.hidden = true; this.refresh(); this.place(); setTimeout(() => { this.chat.scroll(); this.chat.ta.focus(); }, 30); }
+    if (this.open) { this.tuck(false); this.unread = false; this.badge.hidden = true; this.root.classList.remove("ask"); this.say.hidden = true; this.refresh(); this.place(); setTimeout(() => { this.chat.scroll(); this.chat.ta.focus(); }, 30); }
   },
   ask(prompt, label, quote) { this.toggle(true); this.send(prompt, label, quote || null, []); },
   submit() {
@@ -195,7 +221,7 @@ const Buddy = {
   answered() {
     this.save();
     this.mood(null);
-    if (!this.open) { this.unread = true; this.badge.hidden = false; this.talk("回答好了，点我看 👀", 6000); }
+    if (!this.open) { this.unread = true; this.badge.hidden = false; this.root.classList.add("ask"); this.talk("回答好了，点我看 👀", 6000); }
     this.hop();
   },
   save() { LS.set("tiyan:buddy:hist", (S.chats.buddy || []).slice(-30).map(m => ({ role: m.role, content: clip(m.content || "", 8000), label: m.label || "", display: m.display != null ? clip(m.display, 300) : undefined }))); },
@@ -352,8 +378,9 @@ const Buddy = {
   look(x, y) {
     if (!this.pet || this.root.classList.contains("sleep")) return;
     const r = this.pet.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.45;
-    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 160) * 2.6;
-    for (const p of this.pet.querySelectorAll(".bd-pupil, .bd-shine")) p.style.transform = `translate(${(dx / d * k).toFixed(2)}px, ${(dy / d * k).toFixed(2)}px)`;
+    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 180) * 2.4;
+    const face = this.pet.querySelector(".bd-face");          // 整张脸（墨镜、腮红、嘴）朝鼠标偏一点
+    if (face) face.style.transform = `translate(${(dx / d * k).toFixed(2)}px, ${(dy / d * k * 0.75).toFixed(2)}px)`;
   },
   mood(m) { this.root.classList.remove("think", "sleep"); if (m) this.root.classList.add(m); },
   hop() { this.root.classList.remove("hop"); void this.pet.offsetWidth; this.root.classList.add("hop"); setTimeout(() => this.root.classList.remove("hop"), 600); },
