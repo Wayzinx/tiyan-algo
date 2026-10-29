@@ -122,18 +122,16 @@ function sdFocus(where, topic) {
   if (topic !== undefined && topic !== SD_CTX.topic) { SD_CTX.topic = topic; SD_CTX.attempt = ""; SD_CTX.review = ""; }
   if (SD_TUTOR) SD_TUTOR.label();
 }
+// 设计编码页把自己的老师上下文和快捷按钮交给右下角的小眼（全站只有一个助手）
 function sdTutorEl() {
-  const lib = sdLib();
   const outline = SDD.blocks.map(b => `- ${b.id} ${b.title}`).concat(SDD.designs.map(d => `- ${d.id} ${d.title}`), (SDD.systems || []).map(x => `- ${x.id} 系统设计：${x.title}（各环节 id：${x.id}-clarify / -services / -tables / -states / -flows …）`), (TB.mechanisms || []).map((m, i) => `- mech${i} ${m.name}`), ["- tpl 回答模板", "- styles 面试官追问风格", "- security 安全清单", "- pressure 压力追问 10 问"], (TB.metric_drills || []).map((m, i) => `- metric${i} 指标口径：${m.name}`)).join("\n");
-  const chat = new Chat({
-    key: "sd:tutor",
+  Buddy.provide({
+    where: () => { const t = SD_CTX.topic; return ["设计编码", SD_CTX.where, t ? (t.states ? `${t.id.toUpperCase()} ${t.title}` : t.title || "") : ""].filter(Boolean).join(" › "); },
     context: () => SD_TEACHER + "\n\n【站内资料目录（id 可直接 read_section）】\n" + outline
       + (SD_CTX.where ? `\n\n【学习者现在在】${SD_CTX.where}` : "")
       + (SD_CTX.topic ? "\n\n【当前题目与参考答案】（学习者没要求就不要整段照抄参考，先引导）\n" + clip(sdTopicText(SD_CTX.topic), 5000) : "")
       + (sdAttempt() ? "\n\n【学习者刚才的作答】\n" + clip(sdAttempt(), 6000) : "")
       + (sdReview() ? "\n\n【刚才 AI 评估的结果】\n" + clip(sdReview(), 3000) : ""),
-    placeholder: "哪里没想通就问，比如“为什么失败不能缓存？”“这题我说用分布式锁，哪里不对？”",
-    intro: "我能看到你正在练的题、你的作答和最近一次评估。写完 / 说完之后点「帮我查漏补缺」，我会告诉你哪里想错了、漏了什么、怎么说更好，以及下次遇到类似场景该怎么想。",
     actions: [
       { label: "帮我查漏补缺", run: c => c.send(SD_CTX.attempt ? "根据我刚才的作答和这道题的参考，帮我查漏补缺：① 哪里想错了（引用我的说法再纠正）② 漏了什么 ③ 哪里可以更好 ④ 下次遇到类似场景怎么想（3–5 步）⑤ 一条最佳实践。最后挑最严重的一个问题，出一个小场景让我马上再答一次。" : "我还没有作答。请针对当前这道题，先问我 3 个检查问题（核心状态 / 最重要的不变量 / 最难的失败场景），一次一个，我答完你再点评、查漏补缺。", { label: "帮我查漏补缺" }) },
       { label: "讲透这道题", run: c => c.send("用因果链讲透当前这道题的参考设计：为什么是这些核心状态 / 机制；每个机制解决什么失败模式、代价是什么、怎么兜底、用什么指标证明。最后说面试时最容易被追问的 2 个点和答法。", { label: "讲透这道题" }) },
@@ -142,27 +140,11 @@ function sdTutorEl() {
       { label: "换皮考我", run: c => c.send("给我出一个换了业务背景、但本质是当前这道题同一模式的新题面。只给题面，让我先说核心状态、最重要的不变量和最难的失败场景；我答完你再点评、查漏补缺。", { label: "换皮考我" }) },
     ],
   });
-  const rawSend = chat.send.bind(chat);
-  chat.send = (prompt, o = {}) => {
-    const hits = lib.search(prompt, 2);
-    if (hits.length) prompt += "\n\n【可能相关的站内资料（本地检索，可能不全）】\n" + hits.map(c => `[${c.id}]【${c.where}】\n${clip(c.text, 1200)}`).join("\n\n");
-    return rawSend(prompt, Object.assign({ tools: libTools(lib) }, o));
-  };
-  S.liveChats = [chat];
-  const ctxEl = h("span", { class: "small faint sd-drawer-ctx" });
-  const open0 = LS.get("tiyan:sd:tutor", false);
-  const drawer = h("aside", { class: "sd-drawer" + (open0 ? " open" : ""), "aria-label": "AI 老师" },
-    h("div", { class: "sd-drawer-h" }, h("div", { class: "stack", style: "gap:0" }, h("b", null, "AI 老师 · 查漏补缺"), ctxEl), h("button", { class: "btn ghost sm", type: "button", onclick: () => setOpen(false) }, "收起")), chat.el);
-  const fab = h("button", { class: "btn primary sd-fab", type: "button", onclick: () => setOpen(!drawer.classList.contains("open")) }, "AI 老师");
-  const setOpen = v => { drawer.classList.toggle("open", v); document.body.classList.toggle("sd-tutor-open", v); LS.set("tiyan:sd:tutor", v); if (v) setTimeout(() => { chat.scroll(); chat.ta.focus(); }, 60); };
-  document.body.classList.toggle("sd-tutor-open", open0);
-  const label = () => { const t = SD_CTX.topic; ctxEl.textContent = [SD_CTX.where, t ? (t.states ? `${t.id.toUpperCase()} ${t.title}` : t.title || "") : ""].filter(Boolean).join(" · ") || "设计编码"; };
-  label();
-  SD_TUTOR = { chat, setOpen, label };
-  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; SD_TUTOR = null; document.body.classList.remove("sd-tutor-open"); });
-  return h("div", { class: "sd-tutor" }, fab, drawer);
+  SD_TUTOR = { label: () => Buddy.refresh() };
+  onLeave(() => { SD_TUTOR = null; Buddy.provide(null); });
+  return "";
 }
-function sdTutorAsk(prompt, label) { if (!SD_TUTOR) return; SD_TUTOR.setOpen(true); SD_TUTOR.chat.send(prompt, { label }); }
+function sdTutorAsk(prompt, label) { Buddy.ask(prompt, label); }
 // 统一的“查漏补缺”展示：想错了 / 可以更好 / 下次怎么想 / 最佳实践 + 接着问老师
 function coachEl(r) {
   const wrong = arrStr(r.wrong, 5), opt = arrStr(r.optimize, 5), nxt = arrStr(r.next_time, 6);
@@ -171,7 +153,7 @@ function coachEl(r) {
     opt.length ? h("div", null, h("h3", null, "哪里可以更好"), sdList(opt)) : "",
     nxt.length ? h("div", { class: "callout blue" }, h("b", null, "下次遇到类似场景，这样想"), h("ol", { class: "mock-ul" }, nxt.map(x => h("li", null, x)))) : "",
     r.best_practice ? h("div", { class: "sd-bp" }, h("b", null, "最佳实践　"), String(r.best_practice)) : "",
-    h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: () => sdTutorAsk("我看了刚才的评估。请挑我最严重的一个问题讲透：为什么错、正确的因果链（约束 → 失败模式 → 机制 → 代价 → 兜底 → 指标）是什么；然后出一个类似的小场景让我马上再答一次。", "接着问老师：讲透最严重的问题") }, "接着问 AI 老师"), h("span", { class: "small faint" }, "老师能看到题目、你的作答和这次评估")));
+    h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: () => sdTutorAsk("我看了刚才的评估。请挑我最严重的一个问题讲透：为什么错、正确的因果链（约束 → 失败模式 → 机制 → 代价 → 兜底 → 指标）是什么；然后出一个类似的小场景让我马上再答一次。", "接着问老师：讲透最严重的问题") }, "接着问 AI 老师"), h("span", { class: "small faint" }, "右下角的小眼能看到题目、你的作答和这次评估")));
 }
 // 记下作答和评估，供 AI 老师接着用
 function sdNote(attempt, review) { if (attempt != null) SD_CTX.attempt = attempt; if (review != null) SD_CTX.review = typeof review === "string" ? review : JSON.stringify(review); }

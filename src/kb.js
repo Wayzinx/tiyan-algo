@@ -207,24 +207,6 @@ function viewCourse(cfg) {
 
   // 中间：正文
   const body = h("article", { class: "course-body" });
-  const selBtn = h("button", { class: "btn primary sm kb-ask", type: "button", hidden: true }, "问 AI 这段");
-  let selText = "";
-  selBtn.addEventListener("mousedown", e => e.preventDefault());
-  selBtn.addEventListener("click", () => {
-    selBtn.hidden = true;
-    const s = all.find(x => x.id === cur);
-    chat.send(`我没看懂这段：「${clip(selText, 1500)}」（出自【${s.course} › ${s.title}】）。请用大白话解释它在说什么、为什么，必要时举个例子。`, { label: "问 AI 这段", display: clip(selText, 80) });
-  });
-  body.addEventListener("mouseup", () => setTimeout(() => {
-    const ws = window.getSelection();
-    selText = ws ? String(ws).trim() : "";
-    if (selText.length < 2 || !body.contains(ws.anchorNode)) { selBtn.hidden = true; return; }
-    const r = ws.getRangeAt(0).getBoundingClientRect();
-    const box = body.getBoundingClientRect();
-    selBtn.style.top = (r.bottom - box.top + 6) + "px";
-    selBtn.style.left = Math.max(0, Math.min(r.left - box.left, box.width - 110)) + "px";
-    selBtn.hidden = false;
-  }, 0));
 
   function open(id) {
     cur = id;
@@ -260,8 +242,7 @@ function viewCourse(cfg) {
       tabBody,
       h("div", { class: "spread course-pager" },
         i > 0 ? h("button", { class: "btn sm", type: "button", onclick: () => { markRead(s.id); open(all[i - 1].id); } }, "← " + clip(all[i - 1].title, 14)) : h("span"),
-        h("button", { class: "btn sm" + (readSet.has(s.id) ? "" : " primary"), type: "button", onclick: () => { markRead(s.id); if (i < all.length - 1) open(all[i + 1].id); else toast("这一模块读完了"); } }, i < all.length - 1 ? "读完了，下一节 → " + clip(all[i + 1].title, 14) : "读完了")),
-      selBtn);
+        h("button", { class: "btn sm" + (readSet.has(s.id) ? "" : " primary"), type: "button", onclick: () => { markRead(s.id); if (i < all.length - 1) open(all[i + 1].id); else toast("这一模块读完了"); } }, i < all.length - 1 ? "读完了，下一节 → " + clip(all[i + 1].title, 14) : "读完了")));
     drawNav();
     const top = body.getBoundingClientRect().top + window.scrollY - 80;
     if (window.scrollY > top) window.scrollTo(0, Math.max(0, top));
@@ -319,7 +300,7 @@ function viewKB(sub) {
     searchHint: "搜索知识点，如 KV Cache、MCP、上下文压缩",
     teacher: KNOW_TEACHER,
     placeholder: "问任何不懂的：比如“harness 和 agent 框架有什么区别？”（Enter 发送）",
-    intro: "我会先在站内课程里找依据再回答，并标出出处。读到不懂的地方，选中文字点「问 AI 这段」，或者用正文上方的按钮。",
+    intro: "我会先在站内课程里找依据再回答，并标出出处。读到不懂的地方，用正文上方的按钮；也可以在页面任何地方选中文字，问右下角的小眼。",
     chatActions: [
       { label: "给我一条学习路线", run: c => c.send("根据站内五门课的目录，给我一条 3 周的学习路线：每天学哪几节、配哪些手写实战、学完应该能回答什么问题、怎么检验自己学会了。", { label: "学习路线" }) },
       { label: "随机考我一题", run: c => c.send("从站内课程里随机挑一个重要知识点，出一道面试式问题考我。只出题，等我回答后再点评，先别给答案。", { label: "随机考我一题", noPrefetch: true }) },

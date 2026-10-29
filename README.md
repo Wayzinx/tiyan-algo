@@ -39,6 +39,7 @@ cd ~/tiyan-algo && node server.mjs                                         # 打
   - Python 刷题语法：`python_features.py` → `gen_python.py` → `python.json`
   - 算法题独立校验：`oracles.py`（每题的暴力解 + 随机小输入 + 性能用的大输入），`gen.py` 会交叉验证参考解
   - 设计编码：`sd/*.py`（12 道积木题 + 10 道设计题；`EXTRAS` 给每道设计题配 10 问压力追问 / 指标口径 / 技术选型五句；`toolbox.py` 是机制工具箱；`systems_*.py` 是 8 道系统设计实战题，参考建表语句由 `gen_sd.py` 转成 SQLite 真正建一遍）→ `gen_sd.py` → `sd.json`；对应的编码题在 `labs/sd_*.py`。系统设计页的 Mermaid 画图用 `public/vendor/mermaid.min.js`（MIT，按需加载），建表检查是 `harness.py` 里的 `check_ddl`
+  - 小眼（`src/buddy.js`）：全站右下角的学习搭子。选中任何文字可直接问；框选页面截图（`public/vendor/html2canvas-pro.min.js`，MIT，按需加载）会同时附上从页面读出的文字；外部截图可粘贴 / 拖入。图片走 `deepseek-flash` 的 `image_url`，模型拒收时自动去掉图片重试。设计编码页把自己的老师上下文交给小眼（`Buddy.provide`）
   - 项目实战：`capstones/<id>/meta.py`（里程碑说明）、`skeleton/`（公开的项目骨架，打包成 `public/capstones/<id>.zip`）、`reference/`（参考实现，只在本机，不提交）→ `gen_capstones.py` → `capstones.json`
 
 改了 `src/` 或 `data/problems.json` 之后运行 `python3 build.py` 重新生成页面。

@@ -359,7 +359,8 @@ const AI = {
     } else {
       // 没有后端（GitHub Pages 等静态托管）：浏览器直连 DeepSeek，key 只存在本机浏览器
       const d = this.direct();
-      this.mode = "direct"; this.model = d.model; this.pro = d.pro; this.images = false;
+      // deepseek-flash 能看图（image_url，base64 data URL）；自定义成别的模型时先按不能看图处理
+      this.mode = "direct"; this.model = d.model; this.pro = d.pro; this.images = /flash/i.test(d.model) && !this.noImages;
       S.ai = this.key() ? "ready" : "needkey";
     }
     updateChips();
@@ -373,6 +374,10 @@ const AI = {
     if (!this.ok()) throw { code: { locked: "locked", nokey: "no_key", needkey: "need_key" }[S.ai] || "unavailable" };
     const messages = mergeTurns(typeof input === "string" ? [{ role: "user", content: input }] : input);
     if (!messages.length || messages[messages.length - 1].role !== "user") throw { code: "invalid_request" };
+    // 图片只放在最后一条用户消息里（官方要求只能出现在 user 消息）；带图时固定用能看图的默认模型
+    const imgs = this.images ? (o.images || []).filter(u => typeof u === "string" && u.startsWith("data:image/")) : [];
+    const lastMsg = messages[messages.length - 1], plain = lastMsg.content;
+    if (imgs.length) { lastMsg.content = [{ type: "text", text: plain }].concat(imgs.map(url => ({ type: "image_url", image_url: { url, detail: "auto" } }))); o = Object.assign({}, o, { tier: "default" }); }
     let tools = o.tools ? o.tools.filter(t => !t.needsPy || S.py === "ready") : null;
     if (tools && !tools.length) tools = null;
     const spec = tools ? tools.map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema || { type: "object", properties: {} } } })) : undefined;
@@ -381,12 +386,20 @@ const AI = {
     for (let round = 0; round < MAX; round++) {
       const last = round === MAX - 1;
       let r;
-      try {
-        r = await this.round(messages, {
-          json: !!o.json && (!spec || last), tools: last ? undefined : spec, tier: o.tier, signal: o.signal,
-          onDelta: o.json ? null : d => { full += d; if (o.onText) o.onText({ text: full, delta: d }); },
-        });
-      } catch (e) { if (full) e.text = full; throw e; }
+      const once = () => this.round(messages, {
+        json: !!o.json && (!spec || last), tools: last ? undefined : spec, tier: o.tier, signal: o.signal,
+        onDelta: o.json ? null : d => { full += d; if (o.onText) o.onText({ text: full, delta: d }); },
+      });
+      try { r = await once(); }
+      catch (e) {
+        // 模型拒收图片：这次会话里不再发图，去掉图片重试一次（页面截图另外附了从页面读出的文字）
+        if (imgs.length && round === 0 && !full && e && e.code === "invalid_request" && Array.isArray(lastMsg.content)) {
+          this.images = false; this.noImages = true;
+          lastMsg.content = plain + "\n\n（系统提示：当前模型不支持看图，图片没有发送；如果上面有截图区域的文字，以它为准。）";
+          if (o.onImagesDropped) o.onImagesDropped();
+          try { r = await once(); } catch (e2) { if (full) e2.text = full; throw e2; }
+        } else { if (full) e.text = full; throw e; }
+      }
       truncated = r.finish === "length";
       if (r.toolCalls.length && !last) {
         messages.push({ role: "assistant", content: r.content || "", tool_calls: r.toolCalls.map(c => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args || "{}" } })) });

@@ -3,8 +3,9 @@
 const CHAT_JOBS = {};   // key → { text, views: Set, ctl, progress }
 const CHAT_LIVE = {};   // key → 当前页面上的 Chat 实例
 class Chat {
-  constructor({ key, context, placeholder, actions, intro, images }) {
+  constructor({ key, context, placeholder, actions, intro, images, who }) {
     this.key = key;
+    this.who = who || ["题眼", "老师"];
     this.context = context;
     this.msgs = S.chats[key] || (S.chats[key] = []);
     this.ctl = null;
@@ -47,7 +48,7 @@ class Chat {
       a.btn = b;
       this.actEl.append(b);
     }
-    if (!this.msgs.length && intro) this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), h("div", { class: "md muted" }, intro)));
+    if (!this.msgs.length && intro) { const d = h("div", { class: "md muted" }); renderMd(d, intro); this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, this.who[0]), this.who[1]), d)); }
     for (const m of this.msgs) this.renderMsg(m, false);
     CHAT_LIVE[key] = this;
     const job = CHAT_JOBS[key];
@@ -114,25 +115,28 @@ class Chat {
     if (!text && !this.file) return;
     this.ta.value = "";
     this.ta.style.height = "auto";
-    const imgs = this.file ? [this.file] : null;
+    const file = this.file;
     this.file = null;
     if (this.fileInput) this.fileInput.value = "";
-    this.send(text || "请看我附的截图。", { display: text + (imgs ? "（附图）" : ""), images: imgs });
+    if (!file) { this.send(text, { display: text }); return; }
+    shrinkImage(file).then(url => this.send(text || "请看我附的截图。", { display: text || "请看我附的截图。", images: [url], thumbs: [url] }))
+      .catch(() => toast("图片读不出来，换一张试试"));
   }
   scroll() { this.list.scrollTop = this.list.scrollHeight; }
   renderMsg(m, live) {
     if (this.introEl) { this.introEl.remove(); this.introEl = null; }
     if (m.role === "user") {
-      const b = h("div", { class: "bubble" }, m.label ? h("span", { class: "act" }, "【" + m.label + "】") : "", m.label ? (m.display ? " " + m.display : "") : (m.display || m.content));
+      const b = h("div", { class: "bubble" }, m.label ? h("span", { class: "act" }, "【" + m.label + "】") : "", m.label ? (m.display ? " " + m.display : "") : (m.display || m.content),
+        m.thumbs && m.thumbs.length ? h("div", { class: "msg-thumbs" }, m.thumbs.map(u => h("img", { src: u, alt: "截图" }))) : "");
       this.list.append(h("div", { class: "msg user" }, b));
       this.scroll();
       return null;
     }
     const md = h("div", { class: "md" });
-    const status = h("div", { class: "thinking", hidden: !live }, "老师在想……");
+    const status = h("div", { class: "thinking", hidden: !live }, (this.who[1] === "老师" ? "老师" : this.who[0]) + "在想……");
     const note = h("div", { class: "small faint", hidden: true });
     const tools = h("div", { class: "msg-tools", hidden: live });
-    const wrap = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), status, md, note, tools);
+    const wrap = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, this.who[0]), this.who[1]), status, md, note, tools);
     if (m.node) md.append(m.node);
     else if (m.content) renderMd(md, m.content);
     const addTools = () => {
@@ -175,7 +179,7 @@ class Chat {
     const key = this.key, msgs = this.msgs;
     let userMsg = o.retryOf;
     if (!userMsg) {
-      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
+      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt), thumbs: o.thumbs || null, images: o.images || null };
       msgs.push(userMsg);
       this.renderMsg(userMsg, false);
     }
@@ -191,7 +195,7 @@ class Chat {
     let out = null, failed = null, partial = "";
     try {
       const res = await AI.ask(turns, {
-        signal: job.ctl.signal, tier: o.tier, images: o.images || undefined,
+        signal: job.ctl.signal, tier: o.tier, images: o.images || userMsg.images || undefined, onImagesDropped: () => toast("当前模型看不了图片，这次只发了文字"),
         tools: o.tools ? o.tools(jobView) : undefined,
         onText: ({ text }) => { job.text = text; if (!queued) { queued = true; requestAnimationFrame(paint); } },
       });
@@ -284,6 +288,20 @@ const PROBLEM_SCHEMA = `只返回一个 JSON 对象，不要其他文字。字�
 - solution：正确、简洁的 Python 参考解，class Solution，方法名与 fn 一致；页面会用它重新计算每组 expected；
 - 只出“调用一个函数、比较返回值”的题；如果题目必须设计类（如 LRU 缓存）或交互式输入输出，返回 {"error": "原因"}。`;
 
+// 图片压到最长边 1600px 的 JPEG 再发给能看图的模型（截图原图常常好几 MB）
+async function shrinkImage(src, max = 1600) {
+  let img = src, url = null;
+  if (!(src instanceof HTMLCanvasElement)) {
+    url = typeof src === "string" ? src : URL.createObjectURL(src);
+    img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("图片读不出来")); im.src = url; });
+  }
+  try {
+    const w = img.naturalWidth || img.width, hh = img.naturalHeight || img.height, k = Math.min(1, max / Math.max(w, hh, 1));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(hh * k));
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.9);
+  } finally { if (url && typeof src !== "string") URL.revokeObjectURL(url); }
+}
 function arrStr(a, n) { return Array.isArray(a) ? a.slice(0, n).map(x => String(x)) : []; }
 function normalizeProblem(o, extra = {}) {
   if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("AI 没有返回题目");

@@ -47,7 +47,7 @@ function softRefresh() {
       window.scrollTo(0, y);
     } else if (r.view === "ws" && S.ws && S.ws.refresh) S.ws.refresh();
     else if (r.view === "pattern" && S.patternRefresh) S.patternRefresh();
-    for (const c of S.liveChats || []) c.sync();
+    for (const c of (S.liveChats || []).concat(typeof Buddy !== "undefined" && Buddy.chat ? [Buddy.chat] : [])) c.sync();
   });
 }
 function renderNav() {

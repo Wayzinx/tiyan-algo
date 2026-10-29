@@ -715,15 +715,6 @@ select.btn { padding-right: 8px; }
 }
 
 /* ---------- 设计编码：AI 老师抽屉 / 工具箱 / 压力追问 ---------- */
-.sd-fab { position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); z-index: 41; box-shadow: var(--shadow); border-radius: 22px; padding: 10px 18px; }
-.sd-drawer { position: fixed; top: var(--top); right: 0; bottom: 0; width: min(440px, 100vw); background: var(--surface); border-left: 1px solid var(--line); box-shadow: var(--shadow); z-index: 42; display: flex; flex-direction: column; transform: translateX(105%); transition: transform .2s ease; visibility: hidden; }
-.sd-drawer.open { transform: none; visibility: visible; }
-.sd-drawer-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
-.sd-drawer-ctx { display: block; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sd-drawer .chat { flex: 1; min-height: 0; }
-.sd-drawer .msgs { max-height: none; }
-body.sd-tutor-open .sd-fab { display: none; }
-@media (min-width: 1360px) { body.sd-tutor-open .page.sd-page { margin-right: 456px; margin-left: 24px; max-width: none; } }
 .sd-coach { gap: 10px; margin-top: 4px; }
 .sd-coach .callout .mock-ul { margin: 6px 0 0; }
 .sd-bp { border: 1px dashed var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 14px; }
@@ -745,10 +736,6 @@ body.sd-tutor-open .sd-fab { display: none; }
 .sd-chain span.hit { border-color: var(--green); color: var(--green); background: var(--green-soft); }
 .sd-chain span.miss { border-color: var(--red); color: var(--red); background: var(--red-soft); }
 .sd-fill { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-@media (max-width: 720px) {
-  .sd-fab { right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
-  .sd-drawer { width: 100vw; border-left: 0; }
-}
 .sd-fields li { grid-template-columns: 150px minmax(0, 1fr); }
 @media (max-width: 720px) { .sd-fields li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
 .sd-page .chip { max-width: 100%; white-space: normal; text-align: left; height: auto; }
@@ -768,6 +755,87 @@ body.sd-tutor-open .sd-fab { display: none; }
 .sd-verdicts td:nth-child(2) { white-space: nowrap; }
 .sd-verdicts td:first-child { min-width: 160px; }
 .sd-sys-sec { scroll-margin-top: calc(var(--top) + 12px); }
+
+/* ---------- 小眼：右下角的学习搭子 ---------- */
+.bd-pet { position: fixed; right: 14px; bottom: calc(14px + var(--bd-dodge, 0px) + env(safe-area-inset-bottom, 0px)); z-index: 45; width: 60px; height: 60px; transition: bottom .25s ease; padding: 0; border: 0; background: none; cursor: pointer; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.bd-pet svg { width: 100%; height: 100%; overflow: visible; display: block; }
+.bd-pet:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 50%; }
+.bd-body { fill: var(--surface); stroke: var(--red); stroke-width: 2.6; }
+.bd-tuft { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; }
+.bd-white { fill: #fff; stroke: var(--ink); stroke-width: 1.6; }
+.bd-pupil { fill: #2a2622; transition: transform .12s ease-out; }
+.bd-shine { fill: #fff; transition: transform .12s ease-out; }
+.bd-blush { fill: var(--red); opacity: .18; }
+.bd-mouth { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.bd-shadow { fill: var(--ink); opacity: .12; }
+.bd-z { font: 700 13px/1 var(--sans); fill: var(--ink-3); opacity: 0; }
+.bd-bod { animation: bd-bob 3.2s ease-in-out infinite; transform-origin: 36px 60px; }
+.bd-eye { animation: bd-blink 5s infinite; transform-box: fill-box; transform-origin: center; }
+@keyframes bd-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes bd-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+.bd-pet:hover .bd-bod { animation-duration: 1.4s; }
+.bd-root.hop .bd-bod { animation: bd-hop .55s ease-out; }
+@keyframes bd-hop { 0% { transform: translateY(0) scale(1, 1); } 30% { transform: translateY(-9px) scale(.96, 1.05); } 60% { transform: translateY(0) scale(1.06, .94); } 100% { transform: translateY(0) scale(1); } }
+.bd-root.think .bd-bod { animation-duration: .9s; }
+.bd-root.think .bd-pupil, .bd-root.think .bd-shine { transform: translate(1.8px, -2.4px) !important; }
+.bd-root.think .bd-pet::after { content: "···"; position: absolute; top: -10px; right: -6px; font: 700 16px/1 var(--sans); color: var(--red); animation: bd-dots 1s steps(3) infinite; letter-spacing: 1px; }
+@keyframes bd-dots { 0% { clip-path: inset(0 66% 0 0); } 50% { clip-path: inset(0 33% 0 0); } 100% { clip-path: inset(0 0 0 0); } }
+.bd-root.sleep .bd-eye { animation: none; transform: scaleY(.12); }
+.bd-root.sleep .bd-bod { animation-duration: 5s; }
+.bd-root.sleep .bd-z { animation: bd-z 2.4s ease-in-out infinite; }
+@keyframes bd-z { 0% { opacity: 0; transform: translate(0, 0); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -10px); } }
+.bd-root.dragging .bd-pet, .bd-root.measuring .bd-pet { transition: none; }
+.bd-root.dragging .bd-pet { cursor: grabbing; }
+.bd-root.dragging .bd-bod { animation: none; transform: rotate(-8deg) scale(1.05); }
+.bd-badge { position: absolute; top: 6px; right: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--red); border: 2px solid var(--paper); }
+.bd-badge[hidden] { display: none; }
+.bd-say { position: fixed; z-index: 46; max-width: 240px; background: var(--ink); color: var(--paper); padding: 8px 12px; border-radius: 12px 12px 4px 12px; font-size: 13px; line-height: 1.45; box-shadow: var(--shadow); pointer-events: none; }
+.bd-say[hidden] { display: none; }
+.bd-tab { display: none; position: fixed; right: 0; bottom: 96px; z-index: 45; border: 1px solid var(--line); border-right: 0; background: var(--surface); border-radius: 10px 0 0 10px; padding: 8px 6px 8px 9px; cursor: pointer; box-shadow: var(--shadow); font-size: 16px; }
+.bd-root.tucked .bd-pet, .bd-root.tucked .bd-say { display: none; }
+.bd-root.tucked .bd-tab { display: block; }
+.bd-root.opened .bd-say { display: none; }
+.bd-panel { position: fixed; z-index: 46; right: 22px; bottom: 96px; width: min(420px, calc(100vw - 24px)); height: min(640px, calc(100vh - 110px)); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+.bd-panel[hidden] { display: none; }
+.bd-panel.drop { outline: 2px dashed var(--accent); outline-offset: -6px; }
+.bd-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--line); flex: none; }
+.bd-head .btn { padding: 4px 7px; }
+.bd-mini { width: 30px; height: 30px; flex: none; }
+.bd-mini svg { width: 100%; height: 100%; }
+.bd-mini .bd-z, .bd-mini .bd-shadow { display: none; }
+.bd-mini .bd-bod, .bd-mini .bd-eye { animation: none; }
+.bd-where { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bd-panel .chat { flex: 1; min-height: 0; }
+.bd-panel .msgs { max-height: none; }
+.bd-panel .msg.ai .who b { font-family: var(--sans); font-weight: 700; font-size: 14px; }
+.bd-tray { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px 0; flex: none; }
+.bd-tray[hidden] { display: none; }
+.bd-chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 3px 4px; font-size: 12.5px; background: var(--paper); }
+.bd-chip.q { border-left: 3px solid var(--accent); padding-left: 8px; }
+.bd-chip img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); }
+.bd-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-chip button { border: 0; background: none; cursor: pointer; color: var(--ink-3); padding: 0 4px; font-size: 12px; }
+.msg-thumbs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.msg-thumbs img { max-width: 160px; max-height: 110px; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.msg.user .bubble { white-space: pre-wrap; }
+.bd-sel { position: fixed; z-index: 47; display: flex; background: var(--ink); border-radius: 9px; box-shadow: var(--shadow); overflow: hidden; }
+.bd-sel[hidden] { display: none; }
+.bd-sel button { border: 0; background: none; color: var(--paper); font-size: 13px; padding: 7px 11px; cursor: pointer; white-space: nowrap; }
+.bd-sel button + button { border-left: 1px solid rgba(255, 255, 255, .22); }
+.bd-sel button.on { font-weight: 600; }
+.bd-sel button:hover { background: rgba(255, 255, 255, .12); }
+.bd-cap { position: fixed; inset: 0; z-index: 60; cursor: crosshair; touch-action: none; background: rgba(0, 0, 0, .12); }
+.bd-box { position: fixed; border: 2px solid var(--accent); box-shadow: 0 0 0 9999px rgba(0, 0, 0, .32); border-radius: 3px; pointer-events: none; }
+.bd-box[hidden] { display: none; }
+.bd-cap-tip { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 14px; border-radius: 8px; font-size: 14px; pointer-events: none; }
+.bd-cap-tip[hidden] { display: none; }
+@media (max-width: 720px) {
+  .bd-pet { width: 50px; height: 50px; right: 10px; bottom: calc(10px + var(--bd-dodge, 0px) + env(safe-area-inset-bottom, 0px)); }
+  .bd-panel { left: 0 !important; top: 0 !important; right: 0; bottom: 0; width: 100vw !important; height: 100dvh !important; border-radius: 0; border: 0; }
+  .bd-head .btn { font-size: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .bd-bod, .bd-eye, .bd-z { animation: none !important; } }
+@media print { .bd-root { display: none !important; } }
 
 </style>
 </head>
@@ -2228,7 +2296,8 @@ const AI = {
     } else {
       // 没有后端（GitHub Pages 等静态托管）：浏览器直连 DeepSeek，key 只存在本机浏览器
       const d = this.direct();
-      this.mode = "direct"; this.model = d.model; this.pro = d.pro; this.images = false;
+      // deepseek-flash 能看图（image_url，base64 data URL）；自定义成别的模型时先按不能看图处理
+      this.mode = "direct"; this.model = d.model; this.pro = d.pro; this.images = /flash/i.test(d.model) && !this.noImages;
       S.ai = this.key() ? "ready" : "needkey";
     }
     updateChips();
@@ -2242,6 +2311,10 @@ const AI = {
     if (!this.ok()) throw { code: { locked: "locked", nokey: "no_key", needkey: "need_key" }[S.ai] || "unavailable" };
     const messages = mergeTurns(typeof input === "string" ? [{ role: "user", content: input }] : input);
     if (!messages.length || messages[messages.length - 1].role !== "user") throw { code: "invalid_request" };
+    // 图片只放在最后一条用户消息里（官方要求只能出现在 user 消息）；带图时固定用能看图的默认模型
+    const imgs = this.images ? (o.images || []).filter(u => typeof u === "string" && u.startsWith("data:image/")) : [];
+    const lastMsg = messages[messages.length - 1], plain = lastMsg.content;
+    if (imgs.length) { lastMsg.content = [{ type: "text", text: plain }].concat(imgs.map(url => ({ type: "image_url", image_url: { url, detail: "auto" } }))); o = Object.assign({}, o, { tier: "default" }); }
     let tools = o.tools ? o.tools.filter(t => !t.needsPy || S.py === "ready") : null;
     if (tools && !tools.length) tools = null;
     const spec = tools ? tools.map(t => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema || { type: "object", properties: {} } } })) : undefined;
@@ -2250,12 +2323,20 @@ const AI = {
     for (let round = 0; round < MAX; round++) {
       const last = round === MAX - 1;
       let r;
-      try {
-        r = await this.round(messages, {
-          json: !!o.json && (!spec || last), tools: last ? undefined : spec, tier: o.tier, signal: o.signal,
-          onDelta: o.json ? null : d => { full += d; if (o.onText) o.onText({ text: full, delta: d }); },
-        });
-      } catch (e) { if (full) e.text = full; throw e; }
+      const once = () => this.round(messages, {
+        json: !!o.json && (!spec || last), tools: last ? undefined : spec, tier: o.tier, signal: o.signal,
+        onDelta: o.json ? null : d => { full += d; if (o.onText) o.onText({ text: full, delta: d }); },
+      });
+      try { r = await once(); }
+      catch (e) {
+        // 模型拒收图片：这次会话里不再发图，去掉图片重试一次（页面截图另外附了从页面读出的文字）
+        if (imgs.length && round === 0 && !full && e && e.code === "invalid_request" && Array.isArray(lastMsg.content)) {
+          this.images = false; this.noImages = true;
+          lastMsg.content = plain + "\n\n（系统提示：当前模型不支持看图，图片没有发送；如果上面有截图区域的文字，以它为准。）";
+          if (o.onImagesDropped) o.onImagesDropped();
+          try { r = await once(); } catch (e2) { if (full) e2.text = full; throw e2; }
+        } else { if (full) e.text = full; throw e; }
+      }
       truncated = r.finish === "length";
       if (r.toolCalls.length && !last) {
         messages.push({ role: "assistant", content: r.content || "", tool_calls: r.toolCalls.map(c => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.args || "{}" } })) });
@@ -2587,8 +2668,9 @@ async function readDocFile(file, step = () => {}) {
 const CHAT_JOBS = {};   // key → { text, views: Set, ctl, progress }
 const CHAT_LIVE = {};   // key → 当前页面上的 Chat 实例
 class Chat {
-  constructor({ key, context, placeholder, actions, intro, images }) {
+  constructor({ key, context, placeholder, actions, intro, images, who }) {
     this.key = key;
+    this.who = who || ["题眼", "老师"];
     this.context = context;
     this.msgs = S.chats[key] || (S.chats[key] = []);
     this.ctl = null;
@@ -2631,7 +2713,7 @@ class Chat {
       a.btn = b;
       this.actEl.append(b);
     }
-    if (!this.msgs.length && intro) this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), h("div", { class: "md muted" }, intro)));
+    if (!this.msgs.length && intro) { const d = h("div", { class: "md muted" }); renderMd(d, intro); this.list.append(this.introEl = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, this.who[0]), this.who[1]), d)); }
     for (const m of this.msgs) this.renderMsg(m, false);
     CHAT_LIVE[key] = this;
     const job = CHAT_JOBS[key];
@@ -2698,25 +2780,28 @@ class Chat {
     if (!text && !this.file) return;
     this.ta.value = "";
     this.ta.style.height = "auto";
-    const imgs = this.file ? [this.file] : null;
+    const file = this.file;
     this.file = null;
     if (this.fileInput) this.fileInput.value = "";
-    this.send(text || "请看我附的截图。", { display: text + (imgs ? "（附图）" : ""), images: imgs });
+    if (!file) { this.send(text, { display: text }); return; }
+    shrinkImage(file).then(url => this.send(text || "请看我附的截图。", { display: text || "请看我附的截图。", images: [url], thumbs: [url] }))
+      .catch(() => toast("图片读不出来，换一张试试"));
   }
   scroll() { this.list.scrollTop = this.list.scrollHeight; }
   renderMsg(m, live) {
     if (this.introEl) { this.introEl.remove(); this.introEl = null; }
     if (m.role === "user") {
-      const b = h("div", { class: "bubble" }, m.label ? h("span", { class: "act" }, "【" + m.label + "】") : "", m.label ? (m.display ? " " + m.display : "") : (m.display || m.content));
+      const b = h("div", { class: "bubble" }, m.label ? h("span", { class: "act" }, "【" + m.label + "】") : "", m.label ? (m.display ? " " + m.display : "") : (m.display || m.content),
+        m.thumbs && m.thumbs.length ? h("div", { class: "msg-thumbs" }, m.thumbs.map(u => h("img", { src: u, alt: "截图" }))) : "");
       this.list.append(h("div", { class: "msg user" }, b));
       this.scroll();
       return null;
     }
     const md = h("div", { class: "md" });
-    const status = h("div", { class: "thinking", hidden: !live }, "老师在想……");
+    const status = h("div", { class: "thinking", hidden: !live }, (this.who[1] === "老师" ? "老师" : this.who[0]) + "在想……");
     const note = h("div", { class: "small faint", hidden: true });
     const tools = h("div", { class: "msg-tools", hidden: live });
-    const wrap = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, "题眼"), "老师"), status, md, note, tools);
+    const wrap = h("div", { class: "msg ai" }, h("div", { class: "who" }, h("b", null, this.who[0]), this.who[1]), status, md, note, tools);
     if (m.node) md.append(m.node);
     else if (m.content) renderMd(md, m.content);
     const addTools = () => {
@@ -2759,7 +2844,7 @@ class Chat {
     const key = this.key, msgs = this.msgs;
     let userMsg = o.retryOf;
     if (!userMsg) {
-      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt) };
+      userMsg = { role: "user", content: prompt, label: o.label || "", display: o.display != null ? o.display : (o.label ? "" : prompt), thumbs: o.thumbs || null, images: o.images || null };
       msgs.push(userMsg);
       this.renderMsg(userMsg, false);
     }
@@ -2775,7 +2860,7 @@ class Chat {
     let out = null, failed = null, partial = "";
     try {
       const res = await AI.ask(turns, {
-        signal: job.ctl.signal, tier: o.tier, images: o.images || undefined,
+        signal: job.ctl.signal, tier: o.tier, images: o.images || userMsg.images || undefined, onImagesDropped: () => toast("当前模型看不了图片，这次只发了文字"),
         tools: o.tools ? o.tools(jobView) : undefined,
         onText: ({ text }) => { job.text = text; if (!queued) { queued = true; requestAnimationFrame(paint); } },
       });
@@ -2868,6 +2953,20 @@ const PROBLEM_SCHEMA = `只返回一个 JSON 对象，不要其他文字。字�
 - solution：正确、简洁的 Python 参考解，class Solution，方法名与 fn 一致；页面会用它重新计算每组 expected；
 - 只出“调用一个函数、比较返回值”的题；如果题目必须设计类（如 LRU 缓存）或交互式输入输出，返回 {"error": "原因"}。`;
 
+// 图片压到最长边 1600px 的 JPEG 再发给能看图的模型（截图原图常常好几 MB）
+async function shrinkImage(src, max = 1600) {
+  let img = src, url = null;
+  if (!(src instanceof HTMLCanvasElement)) {
+    url = typeof src === "string" ? src : URL.createObjectURL(src);
+    img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("图片读不出来")); im.src = url; });
+  }
+  try {
+    const w = img.naturalWidth || img.width, hh = img.naturalHeight || img.height, k = Math.min(1, max / Math.max(w, hh, 1));
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * k)); c.height = Math.max(1, Math.round(hh * k));
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg", 0.9);
+  } finally { if (url && typeof src !== "string") URL.revokeObjectURL(url); }
+}
 function arrStr(a, n) { return Array.isArray(a) ? a.slice(0, n).map(x => String(x)) : []; }
 function normalizeProblem(o, extra = {}) {
   if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("AI 没有返回题目");
@@ -2984,7 +3083,7 @@ function softRefresh() {
       window.scrollTo(0, y);
     } else if (r.view === "ws" && S.ws && S.ws.refresh) S.ws.refresh();
     else if (r.view === "pattern" && S.patternRefresh) S.patternRefresh();
-    for (const c of S.liveChats || []) c.sync();
+    for (const c of (S.liveChats || []).concat(typeof Buddy !== "undefined" && Buddy.chat ? [Buddy.chat] : [])) c.sync();
   });
 }
 function renderNav() {
@@ -4345,24 +4444,6 @@ function viewCourse(cfg) {
 
   // 中间：正文
   const body = h("article", { class: "course-body" });
-  const selBtn = h("button", { class: "btn primary sm kb-ask", type: "button", hidden: true }, "问 AI 这段");
-  let selText = "";
-  selBtn.addEventListener("mousedown", e => e.preventDefault());
-  selBtn.addEventListener("click", () => {
-    selBtn.hidden = true;
-    const s = all.find(x => x.id === cur);
-    chat.send(`我没看懂这段：「${clip(selText, 1500)}」（出自【${s.course} › ${s.title}】）。请用大白话解释它在说什么、为什么，必要时举个例子。`, { label: "问 AI 这段", display: clip(selText, 80) });
-  });
-  body.addEventListener("mouseup", () => setTimeout(() => {
-    const ws = window.getSelection();
-    selText = ws ? String(ws).trim() : "";
-    if (selText.length < 2 || !body.contains(ws.anchorNode)) { selBtn.hidden = true; return; }
-    const r = ws.getRangeAt(0).getBoundingClientRect();
-    const box = body.getBoundingClientRect();
-    selBtn.style.top = (r.bottom - box.top + 6) + "px";
-    selBtn.style.left = Math.max(0, Math.min(r.left - box.left, box.width - 110)) + "px";
-    selBtn.hidden = false;
-  }, 0));
 
   function open(id) {
     cur = id;
@@ -4398,8 +4479,7 @@ function viewCourse(cfg) {
       tabBody,
       h("div", { class: "spread course-pager" },
         i > 0 ? h("button", { class: "btn sm", type: "button", onclick: () => { markRead(s.id); open(all[i - 1].id); } }, "← " + clip(all[i - 1].title, 14)) : h("span"),
-        h("button", { class: "btn sm" + (readSet.has(s.id) ? "" : " primary"), type: "button", onclick: () => { markRead(s.id); if (i < all.length - 1) open(all[i + 1].id); else toast("这一模块读完了"); } }, i < all.length - 1 ? "读完了，下一节 → " + clip(all[i + 1].title, 14) : "读完了")),
-      selBtn);
+        h("button", { class: "btn sm" + (readSet.has(s.id) ? "" : " primary"), type: "button", onclick: () => { markRead(s.id); if (i < all.length - 1) open(all[i + 1].id); else toast("这一模块读完了"); } }, i < all.length - 1 ? "读完了，下一节 → " + clip(all[i + 1].title, 14) : "读完了")));
     drawNav();
     const top = body.getBoundingClientRect().top + window.scrollY - 80;
     if (window.scrollY > top) window.scrollTo(0, Math.max(0, top));
@@ -4457,7 +4537,7 @@ function viewKB(sub) {
     searchHint: "搜索知识点，如 KV Cache、MCP、上下文压缩",
     teacher: KNOW_TEACHER,
     placeholder: "问任何不懂的：比如“harness 和 agent 框架有什么区别？”（Enter 发送）",
-    intro: "我会先在站内课程里找依据再回答，并标出出处。读到不懂的地方，选中文字点「问 AI 这段」，或者用正文上方的按钮。",
+    intro: "我会先在站内课程里找依据再回答，并标出出处。读到不懂的地方，用正文上方的按钮；也可以在页面任何地方选中文字，问右下角的小眼。",
     chatActions: [
       { label: "给我一条学习路线", run: c => c.send("根据站内五门课的目录，给我一条 3 周的学习路线：每天学哪几节、配哪些手写实战、学完应该能回答什么问题、怎么检验自己学会了。", { label: "学习路线" }) },
       { label: "随机考我一题", run: c => c.send("从站内课程里随机挑一个重要知识点，出一道面试式问题考我。只出题，等我回答后再点评，先别给答案。", { label: "随机考我一题", noPrefetch: true }) },
@@ -6084,18 +6164,16 @@ function sdFocus(where, topic) {
   if (topic !== undefined && topic !== SD_CTX.topic) { SD_CTX.topic = topic; SD_CTX.attempt = ""; SD_CTX.review = ""; }
   if (SD_TUTOR) SD_TUTOR.label();
 }
+// 设计编码页把自己的老师上下文和快捷按钮交给右下角的小眼（全站只有一个助手）
 function sdTutorEl() {
-  const lib = sdLib();
   const outline = SDD.blocks.map(b => `- ${b.id} ${b.title}`).concat(SDD.designs.map(d => `- ${d.id} ${d.title}`), (SDD.systems || []).map(x => `- ${x.id} 系统设计：${x.title}（各环节 id：${x.id}-clarify / -services / -tables / -states / -flows …）`), (TB.mechanisms || []).map((m, i) => `- mech${i} ${m.name}`), ["- tpl 回答模板", "- styles 面试官追问风格", "- security 安全清单", "- pressure 压力追问 10 问"], (TB.metric_drills || []).map((m, i) => `- metric${i} 指标口径：${m.name}`)).join("\n");
-  const chat = new Chat({
-    key: "sd:tutor",
+  Buddy.provide({
+    where: () => { const t = SD_CTX.topic; return ["设计编码", SD_CTX.where, t ? (t.states ? `${t.id.toUpperCase()} ${t.title}` : t.title || "") : ""].filter(Boolean).join(" › "); },
     context: () => SD_TEACHER + "\n\n【站内资料目录（id 可直接 read_section）】\n" + outline
       + (SD_CTX.where ? `\n\n【学习者现在在】${SD_CTX.where}` : "")
       + (SD_CTX.topic ? "\n\n【当前题目与参考答案】（学习者没要求就不要整段照抄参考，先引导）\n" + clip(sdTopicText(SD_CTX.topic), 5000) : "")
       + (sdAttempt() ? "\n\n【学习者刚才的作答】\n" + clip(sdAttempt(), 6000) : "")
       + (sdReview() ? "\n\n【刚才 AI 评估的结果】\n" + clip(sdReview(), 3000) : ""),
-    placeholder: "哪里没想通就问，比如“为什么失败不能缓存？”“这题我说用分布式锁，哪里不对？”",
-    intro: "我能看到你正在练的题、你的作答和最近一次评估。写完 / 说完之后点「帮我查漏补缺」，我会告诉你哪里想错了、漏了什么、怎么说更好，以及下次遇到类似场景该怎么想。",
     actions: [
       { label: "帮我查漏补缺", run: c => c.send(SD_CTX.attempt ? "根据我刚才的作答和这道题的参考，帮我查漏补缺：① 哪里想错了（引用我的说法再纠正）② 漏了什么 ③ 哪里可以更好 ④ 下次遇到类似场景怎么想（3–5 步）⑤ 一条最佳实践。最后挑最严重的一个问题，出一个小场景让我马上再答一次。" : "我还没有作答。请针对当前这道题，先问我 3 个检查问题（核心状态 / 最重要的不变量 / 最难的失败场景），一次一个，我答完你再点评、查漏补缺。", { label: "帮我查漏补缺" }) },
       { label: "讲透这道题", run: c => c.send("用因果链讲透当前这道题的参考设计：为什么是这些核心状态 / 机制；每个机制解决什么失败模式、代价是什么、怎么兜底、用什么指标证明。最后说面试时最容易被追问的 2 个点和答法。", { label: "讲透这道题" }) },
@@ -6104,27 +6182,11 @@ function sdTutorEl() {
       { label: "换皮考我", run: c => c.send("给我出一个换了业务背景、但本质是当前这道题同一模式的新题面。只给题面，让我先说核心状态、最重要的不变量和最难的失败场景；我答完你再点评、查漏补缺。", { label: "换皮考我" }) },
     ],
   });
-  const rawSend = chat.send.bind(chat);
-  chat.send = (prompt, o = {}) => {
-    const hits = lib.search(prompt, 2);
-    if (hits.length) prompt += "\n\n【可能相关的站内资料（本地检索，可能不全）】\n" + hits.map(c => `[${c.id}]【${c.where}】\n${clip(c.text, 1200)}`).join("\n\n");
-    return rawSend(prompt, Object.assign({ tools: libTools(lib) }, o));
-  };
-  S.liveChats = [chat];
-  const ctxEl = h("span", { class: "small faint sd-drawer-ctx" });
-  const open0 = LS.get("tiyan:sd:tutor", false);
-  const drawer = h("aside", { class: "sd-drawer" + (open0 ? " open" : ""), "aria-label": "AI 老师" },
-    h("div", { class: "sd-drawer-h" }, h("div", { class: "stack", style: "gap:0" }, h("b", null, "AI 老师 · 查漏补缺"), ctxEl), h("button", { class: "btn ghost sm", type: "button", onclick: () => setOpen(false) }, "收起")), chat.el);
-  const fab = h("button", { class: "btn primary sd-fab", type: "button", onclick: () => setOpen(!drawer.classList.contains("open")) }, "AI 老师");
-  const setOpen = v => { drawer.classList.toggle("open", v); document.body.classList.toggle("sd-tutor-open", v); LS.set("tiyan:sd:tutor", v); if (v) setTimeout(() => { chat.scroll(); chat.ta.focus(); }, 60); };
-  document.body.classList.toggle("sd-tutor-open", open0);
-  const label = () => { const t = SD_CTX.topic; ctxEl.textContent = [SD_CTX.where, t ? (t.states ? `${t.id.toUpperCase()} ${t.title}` : t.title || "") : ""].filter(Boolean).join(" · ") || "设计编码"; };
-  label();
-  SD_TUTOR = { chat, setOpen, label };
-  onLeave(() => { S.liveChats = []; if (CHAT_LIVE[chat.key] === chat) delete CHAT_LIVE[chat.key]; SD_TUTOR = null; document.body.classList.remove("sd-tutor-open"); });
-  return h("div", { class: "sd-tutor" }, fab, drawer);
+  SD_TUTOR = { label: () => Buddy.refresh() };
+  onLeave(() => { SD_TUTOR = null; Buddy.provide(null); });
+  return "";
 }
-function sdTutorAsk(prompt, label) { if (!SD_TUTOR) return; SD_TUTOR.setOpen(true); SD_TUTOR.chat.send(prompt, { label }); }
+function sdTutorAsk(prompt, label) { Buddy.ask(prompt, label); }
 // 统一的“查漏补缺”展示：想错了 / 可以更好 / 下次怎么想 / 最佳实践 + 接着问老师
 function coachEl(r) {
   const wrong = arrStr(r.wrong, 5), opt = arrStr(r.optimize, 5), nxt = arrStr(r.next_time, 6);
@@ -6133,7 +6195,7 @@ function coachEl(r) {
     opt.length ? h("div", null, h("h3", null, "哪里可以更好"), sdList(opt)) : "",
     nxt.length ? h("div", { class: "callout blue" }, h("b", null, "下次遇到类似场景，这样想"), h("ol", { class: "mock-ul" }, nxt.map(x => h("li", null, x)))) : "",
     r.best_practice ? h("div", { class: "sd-bp" }, h("b", null, "最佳实践　"), String(r.best_practice)) : "",
-    h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: () => sdTutorAsk("我看了刚才的评估。请挑我最严重的一个问题讲透：为什么错、正确的因果链（约束 → 失败模式 → 机制 → 代价 → 兜底 → 指标）是什么；然后出一个类似的小场景让我马上再答一次。", "接着问老师：讲透最严重的问题") }, "接着问 AI 老师"), h("span", { class: "small faint" }, "老师能看到题目、你的作答和这次评估")));
+    h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onclick: () => sdTutorAsk("我看了刚才的评估。请挑我最严重的一个问题讲透：为什么错、正确的因果链（约束 → 失败模式 → 机制 → 代价 → 兜底 → 指标）是什么；然后出一个类似的小场景让我马上再答一次。", "接着问老师：讲透最严重的问题") }, "接着问 AI 老师"), h("span", { class: "small faint" }, "右下角的小眼能看到题目、你的作答和这次评估")));
 }
 // 记下作答和评估，供 AI 老师接着用
 function sdNote(attempt, review) { if (attempt != null) SD_CTX.attempt = attempt; if (review != null) SD_CTX.review = typeof review === "string" ? review : JSON.stringify(review); }
@@ -7048,6 +7110,383 @@ function sysMarkdown(x, st) {
   return out.join("\n");
 }
 
+// ---------- 小眼：挂在右下角的学习搭子 ----------
+// 点它聊天；页面上任何地方选中的文字都能直接问；可以框选页面截图，或者粘贴 / 拖入外部截图
+const BUDDY_SYS = `你是「小眼」，「题眼」学习网站右下角的学习搭子。学习者在准备 Agent / Harness / AI 测试开发 / 后端方向的社招面试，也在用 Python 刷算法题。
+他可能：选中页面上的一段文字问你；发页面区域截图（会同时附上从页面直接读出的文字，以文字为准）；发外部截图（题目、报错、面试题、手写思路，你直接看图）。
+回答方式：
+1. 先给结论，再用大白话解释为什么，必要时举例或给代码；和面试相关时补一句“面试里怎么答”。
+2. 查漏补缺：他的说法有错就直接指出并纠正，不要顺着说。
+3. 他在做题时先引导、给提示，不要一上来贴完整答案，除非他要。
+4. 站内资料用 search_notes / read_section 查，引用时说出处；站内没有就用通用知识。
+5. 语气像靠谱的学长 / 搭子：亲切、直接、不啰嗦，一般 400 字以内。`;
+const BUDDY_ACTIONS = [
+  ["讲讲这一页", "用大白话给我讲讲我现在看的这一页：最重要的 3 个点是什么，面试里会怎么问。"],
+  ["我卡住了", "我在这一页卡住了。先问我卡在哪一步（给我 2–3 个可能的选项），再一步步引导我，不要直接给完整答案。"],
+  ["考考我", "根据我现在看的这一页，出一道最可能在面试里被问到的题考我。只出题，等我回答后再点评：哪里想错了、更好的答法、下次怎么想。"],
+  ["总结成速记卡", "把这一页总结成一张能背下来的速记卡：核心概念、关键数字或公式、易错点、面试一句话答法。"],
+];
+const BUDDY_PET = `<svg viewBox="0 0 72 72" aria-hidden="true">
+  <ellipse class="bd-shadow" cx="36" cy="67" rx="17" ry="3"/>
+  <g class="bd-bod">
+    <path class="bd-tuft" d="M33 9c1-5 5-7 9-6-3 1-5 3-5 6"/>
+    <path class="bd-body" d="M36 8c15 0 27 11 27 28 0 17-11 27-27 27S9 53 9 36C9 19 21 8 36 8z"/>
+    <ellipse class="bd-blush" cx="19" cy="44" rx="4.5" ry="2.6"/><ellipse class="bd-blush" cx="53" cy="44" rx="4.5" ry="2.6"/>
+    <g class="bd-eyes">
+      <g class="bd-eye"><ellipse class="bd-white" cx="27" cy="34" rx="7" ry="8"/><circle class="bd-pupil" cx="27" cy="35" r="3.6"/><circle class="bd-shine" cx="28.4" cy="33.2" r="1.1"/></g>
+      <g class="bd-eye"><ellipse class="bd-white" cx="45" cy="34" rx="7" ry="8"/><circle class="bd-pupil" cx="45" cy="35" r="3.6"/><circle class="bd-shine" cx="46.4" cy="33.2" r="1.1"/></g>
+    </g>
+    <path class="bd-mouth" d="M32 47q4 4 8 0"/>
+  </g>
+  <text class="bd-z" x="54" y="14">z</text>
+</svg>`;
+const Buddy = {
+  open: false, provider: null, quote: null, att: [], lib: null, unread: false, idleAt: Date.now(),
+  init() {
+    if (this.root) return;
+    const hist = LS.get("tiyan:buddy:hist", []);
+    if (!S.chats.buddy && Array.isArray(hist)) S.chats.buddy = hist;
+    this.root = h("div", { class: "bd-root" + (LS.get("tiyan:buddy:hidden", false) ? " tucked" : "") });
+    // 宠物本体
+    this.pet = h("button", { class: "bd-pet", type: "button", title: "小眼：点我聊天；选中页面文字可以直接问我", "aria-label": "打开小眼" });
+    this.pet.innerHTML = BUDDY_PET;
+    this.badge = h("span", { class: "bd-badge", hidden: true });
+    this.say = h("div", { class: "bd-say", hidden: true });
+    this.tab = h("button", { class: "bd-tab", type: "button", title: "叫出小眼", onclick: () => this.tuck(false) }, "👀");
+    this.pet.append(this.badge);
+    // 面板
+    this.chat = new Chat({
+      key: "buddy", who: ["小眼", "学习搭子"], context: () => this.context(),
+      placeholder: "问我任何问题……（Enter 发送；⌘V / Ctrl+V 直接粘贴截图）",
+      intro: "嗨，我是小眼 👀 有不懂的随时问我：\n- 在页面上**选中任何文字**，旁边会冒出「问小眼」；\n- 点下面的「截图」框选页面的一块区域发给我，或者直接**粘贴 / 拖进来**外部截图；\n- 我能看到你现在在哪一页，也能查站内资料。",
+    });
+    const raw = this.chat.send.bind(this.chat);
+    this.chat.send = (prompt, o = {}) => {
+      const lib = this.buddyLib();
+      if (!o.noPrefetch) {
+        const hits = lib.search(prompt, 2);
+        if (hits.length) prompt += "\n\n【可能相关的站内资料（本地检索，可能不全）】\n" + hits.map(c => `[${c.id}]【${c.where}】\n${clip(c.text, 1200)}`).join("\n\n");
+      }
+      const p = raw(prompt, Object.assign({ tools: libTools(lib) }, o));
+      this.mood("think");
+      Promise.resolve(p).then(() => this.answered(), () => this.answered());
+      return p;
+    };
+    this.chat.submit = () => this.submit();
+    this.actRow = h("div", { class: "chat-actions" });
+    this.chat.el.insertBefore(this.actRow, this.chat.list);
+    this.tray = h("div", { class: "bd-tray", hidden: true });
+    const composer = $(".composer", this.chat.el);
+    composer.parentNode.insertBefore(this.tray, composer);
+    this.file = h("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", multiple: true, hidden: true });
+    this.file.addEventListener("change", () => { for (const f of this.file.files) this.addImage(f); this.file.value = ""; });
+    const tools = $(".composer .row .row", this.chat.el);
+    tools.append(h("button", { class: "btn ghost sm", type: "button", title: "框选页面上的一块区域发给小眼", onclick: () => this.capture() }, "✂︎ 截图"),
+      h("button", { class: "btn ghost sm", type: "button", title: "发一张图片（也可以直接粘贴或拖进来）", onclick: () => this.file.click() }, icon("image"), "图片"), this.file);
+    this.chat.ta.addEventListener("paste", e => this.onPaste(e));
+    this.whereEl = h("span", { class: "small faint bd-where" });
+    this.panel = h("section", { class: "bd-panel", hidden: true, "aria-label": "小眼" },
+      h("div", { class: "bd-head" }, h("span", { class: "bd-mini", html: BUDDY_PET }), h("div", { class: "stack", style: "gap:0;min-width:0;flex:1" }, h("b", null, "小眼 · 学习搭子"), this.whereEl),
+        h("button", { class: "btn ghost sm", type: "button", title: "清空和小眼的对话", onclick: () => this.reset() }, "新对话"),
+        h("button", { class: "btn ghost sm", type: "button", title: "把小眼收到屏幕边上", onclick: () => this.tuck(true) }, "藏起来"),
+        h("button", { class: "btn ghost sm bd-x", type: "button", "aria-label": "关闭", onclick: () => this.toggle(false) }, "✕")),
+      this.chat.el);
+    this.panel.addEventListener("dragover", e => { if ([...(e.dataTransfer.items || [])].some(i => i.kind === "file")) { e.preventDefault(); this.panel.classList.add("drop"); } });
+    this.panel.addEventListener("dragleave", e => { if (!this.panel.contains(e.relatedTarget)) this.panel.classList.remove("drop"); });
+    this.panel.addEventListener("drop", e => { e.preventDefault(); this.panel.classList.remove("drop"); for (const f of e.dataTransfer.files) if (/^image\//.test(f.type)) this.addImage(f); });
+    // 选中文字后冒出来的小气泡
+    this.sel = h("div", { class: "bd-sel", hidden: true },
+      h("button", { type: "button", class: "on", onclick: () => this.fromSel("ask") }, "👀 问小眼"),
+      h("button", { type: "button", onclick: () => this.fromSel("explain") }, "解释"),
+      h("button", { type: "button", onclick: () => this.fromSel("quiz") }, "考我"));
+    this.sel.addEventListener("mousedown", e => e.preventDefault());
+    this.root.append(this.panel, this.say, this.pet, this.tab, this.sel);
+    document.body.append(this.root);
+    this.drag();
+    this.place();
+    this.renderActions();
+    this.listen();
+    if (!LS.get("tiyan:buddy:greeted", false)) setTimeout(() => { this.talk("我是小眼～ 选中页面上的任何文字就能问我，也可以截图给我 👀", 9000); LS.set("tiyan:buddy:greeted", true); }, 1800);
+  },
+  // ----- 上下文：页面专属（设计编码会注册自己的老师上下文）或通用页面内容 -----
+  provide(p) { this.provider = p; this.renderActions(); this.refresh(); },
+  refresh() { if (this.whereEl) this.whereEl.textContent = (this.provider && this.provider.where ? this.provider.where() : "") || this.pageWhere(); },
+  pageWhere() {
+    const r = S.route || {}, nav = (typeof NAV !== "undefined" ? NAV : []).find(([k]) => k === r.view), t = $("#main h1");
+    return [nav ? nav[1] : "", t ? t.textContent.trim() : ""].filter(Boolean).join(" › ") || "题眼";
+  },
+  pageText() { const m = $("#main"); return m ? clip(m.innerText.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n"), 3500) : ""; },
+  context() {
+    const base = BUDDY_SYS;
+    if (this.provider) return base + "\n\n" + this.provider.context();
+    return base + `\n\n【学习者现在在】${this.pageWhere()}\n【这一页的主要内容（节选，帮你理解他在看什么）】\n${this.pageText()}`;
+  },
+  buddyLib() {
+    if (this.lib) return this.lib;
+    const items = [];
+    for (const c of (typeof KNOW !== "undefined" ? KNOW : [])) for (const s of c.sections || []) items.push({ id: "k-" + s.id, where: `AI 知识 › ${c.name} › ${s.title}`, text: [s.title, s.summary, s.md, (s.points || []).join("\n")].filter(Boolean).join("\n") });
+    for (const s of (typeof PYDATA !== "undefined" ? PYDATA.sections : [])) items.push({ id: "py-" + s.id, where: `Python › ${s.title}`, text: [s.title, s.summary, s.md, s.algo, (s.pitfalls || []).join("\n")].filter(Boolean).join("\n") });
+    const sd = typeof sdLib === "function" && SDD.blocks.length ? sdLib().items : [];
+    return this.lib = new Library(items.concat(sd.map(x => ({ id: x.id, where: x.where, text: x.text }))));
+  },
+  renderActions() {
+    if (!this.actRow) return;
+    const acts = this.provider && this.provider.actions ? this.provider.actions : BUDDY_ACTIONS.map(([label, prompt]) => ({ label, run: c => c.send(prompt, { label }) }));
+    this.actRow.textContent = "";
+    for (const a of acts) { const b = h("button", { class: "chip", type: "button" }, a.label); b.addEventListener("click", () => { if (!this.chat.busy) a.run(this.chat); }); this.actRow.append(b); }
+  },
+  // ----- 打开 / 发送 -----
+  toggle(v) {
+    this.open = v == null ? !this.open : v;
+    this.panel.hidden = !this.open;
+    this.root.classList.toggle("opened", this.open);
+    if (this.open) { this.tuck(false); this.unread = false; this.badge.hidden = true; this.say.hidden = true; this.refresh(); this.place(); setTimeout(() => { this.chat.scroll(); this.chat.ta.focus(); }, 30); }
+  },
+  ask(prompt, label, quote) { this.toggle(true); this.send(prompt, label, quote || null, []); },
+  submit() {
+    const text = this.chat.ta.value.trim();
+    if (!text && !this.att.length && !this.quote) return;
+    if (this.att.some(a => a.pending)) { toast("截图还在处理，稍等一下"); return; }
+    this.chat.ta.value = ""; this.chat.ta.style.height = "auto";
+    const quote = this.quote, att = this.att.slice();
+    this.quote = null; this.att = []; this.drawTray();
+    this.send(text, "", quote, att);
+  },
+  send(text, label, quote, att) {
+    let prompt = text || (att.length ? "请看我发的截图：先说清它在讲什么，再回答或讲解里面的问题。" : quote ? "这段我没看懂，请用大白话解释一下。" : "");
+    if (quote) prompt = `我在页面上选中了这段（出自：${quote.where}）：\n「${clip(quote.text, 3000)}」\n\n${prompt}`;
+    att.forEach((a, i) => { if (a.text) prompt += `\n\n【截图 ${i + 1} 框选区域里的文字（从页面直接读出，比看图更准）】\n${clip(a.text, 4000)}`; });
+    const imgs = att.map(a => a.url).filter(Boolean);
+    const disp = (label ? "" : text || (att.length ? "看看这张截图" : "解释一下")) + (quote ? `\n> ${clip(quote.text.replace(/\s+/g, " "), 80)}` : "");
+    this.chat.send(prompt, { label: label || "", display: disp, images: imgs, thumbs: imgs });
+  },
+  answered() {
+    this.save();
+    this.mood(null);
+    if (!this.open) { this.unread = true; this.badge.hidden = false; this.talk("回答好了，点我看 👀", 6000); }
+    this.hop();
+  },
+  save() { LS.set("tiyan:buddy:hist", (S.chats.buddy || []).slice(-30).map(m => ({ role: m.role, content: clip(m.content || "", 8000), label: m.label || "", display: m.display != null ? clip(m.display, 300) : undefined }))); },
+  reset() {
+    const j = CHAT_JOBS.buddy; if (j) j.ctl.abort();
+    (S.chats.buddy || []).length = 0; LS.del("tiyan:buddy:hist");
+    this.chat.list.textContent = ""; this.quote = null; this.att = []; this.drawTray();
+    toast("已开始新对话");
+  },
+  // ----- 附件托盘：引用的文字、截图 -----
+  setQuote(text, where) { this.quote = { text, where: where || this.pageWhere() }; this.drawTray(); },
+  drawTray() {
+    this.tray.textContent = "";
+    if (this.quote) this.tray.append(h("div", { class: "bd-chip q" }, h("span", null, "引用：" + clip(this.quote.text.replace(/\s+/g, " "), 60)), h("button", { type: "button", "aria-label": "去掉引用", onclick: () => { this.quote = null; this.drawTray(); } }, "✕")));
+    this.att.forEach(a => this.tray.append(h("div", { class: "bd-chip" }, a.url ? h("img", { src: a.url, alt: "" }) : h("span", { class: "thinking" }, ""),
+      h("span", null, a.pending ? "截图处理中……" : a.text ? `页面截图 · 读出 ${a.text.length} 字` : "图片"),
+      h("button", { type: "button", "aria-label": "去掉", onclick: () => { this.att = this.att.filter(x => x !== a); this.drawTray(); } }, "✕"))));
+    this.tray.hidden = !this.tray.childNodes.length;
+  },
+  async addImage(file) {
+    if (this.att.length >= 4) { toast("一次最多 4 张图"); return; }
+    const a = { pending: true, url: "", text: "" };
+    this.att.push(a); this.drawTray(); this.toggle(true);
+    try { a.url = await shrinkImage(file); } catch (e) { this.att = this.att.filter(x => x !== a); toast("这张图读不出来"); }
+    a.pending = false; this.drawTray();
+    if (!AI.images) toast("当前模型看不了图片；页面截图会附上读出的文字，外部图片可能用不上");
+  },
+  onPaste(e) {
+    const files = [...(e.clipboardData && e.clipboardData.files || [])].filter(f => /^image\//.test(f.type));
+    if (!files.length) return;
+    e.preventDefault();
+    files.forEach(f => this.addImage(f));
+  },
+  // ----- 框选页面截图：读出框里的文字 + 渲染一张图 -----
+  capture() {
+    if (this.capturing) return;
+    this.capturing = true;
+    const wasOpen = this.open;
+    this.panel.hidden = true; this.hideSel();
+    const box = h("div", { class: "bd-box", hidden: true });
+    const tip = h("div", { class: "bd-cap-tip" }, "拖动鼠标框选要问的区域　·　Esc 取消");
+    const cap = h("div", { class: "bd-cap bd-root" }, box, tip);
+    let x0 = 0, y0 = 0, rect = null;
+    const end = () => { cap.remove(); document.removeEventListener("keydown", esc, true); this.capturing = false; };
+    const esc = e => { if (e.key === "Escape") { e.preventDefault(); end(); if (wasOpen) this.toggle(true); } };
+    cap.addEventListener("pointerdown", e => { x0 = e.clientX; y0 = e.clientY; box.hidden = false; tip.hidden = true; cap.setPointerCapture(e.pointerId); rect = null; });
+    cap.addEventListener("pointermove", e => {
+      if (box.hidden) return;
+      const l = Math.min(x0, e.clientX), t = Math.min(y0, e.clientY), w = Math.abs(e.clientX - x0), hh = Math.abs(e.clientY - y0);
+      Object.assign(box.style, { left: l + "px", top: t + "px", width: w + "px", height: hh + "px" });
+      rect = { left: l, top: t, width: w, height: hh, right: l + w, bottom: t + hh };
+    });
+    cap.addEventListener("pointerup", async () => {
+      end();
+      if (!rect || rect.width < 12 || rect.height < 12) { if (wasOpen) this.toggle(true); return; }
+      const a = { pending: true, url: "", text: this.textIn(rect) };
+      this.att.push(a); this.toggle(true); this.drawTray();
+      try { a.url = await this.snap(rect); } catch (e) { /* 渲染失败也没关系：框里的文字已经读出来了 */ }
+      a.pending = false; this.drawTray();
+      if (!a.url && !a.text) { this.att = this.att.filter(x => x !== a); this.drawTray(); toast("框里没有读到内容，换个区域试试"); }
+    });
+    document.addEventListener("keydown", esc, true);
+    document.body.append(cap);
+  },
+  textIn(r) {
+    const hit = q => q.width && q.height && q.right > r.left && q.left < r.right && q.bottom > r.top && q.top < r.bottom;
+    const skip = el => !el || el.closest(".bd-root, script, style, noscript, .CodeMirror-measure");
+    const out = [];
+    let lastBottom = null;
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => n.nodeValue.trim() && !skip(n.parentElement) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+    const range = document.createRange();
+    for (let n; (n = walker.nextNode());) {
+      range.selectNodeContents(n);
+      const rs = [...range.getClientRects()].filter(hit);
+      if (!rs.length) continue;
+      const t = n.nodeValue.replace(/\s+/g, " ").trim();
+      if (lastBottom != null) out.push(rs[0].top >= lastBottom - 3 ? "\n" : " ");
+      out.push(t);
+      lastBottom = rs[rs.length - 1].bottom;
+    }
+    for (const el of document.querySelectorAll("textarea, input[type=text], input:not([type])")) {
+      if (skip(el) || !el.value.trim() || el.closest(".CodeMirror")) continue;
+      if (hit(el.getBoundingClientRect())) out.push("\n【输入框里的内容】" + clip(el.value, 2000));
+    }
+    return out.join("").replace(/\n{3,}/g, "\n\n").trim().slice(0, 8000);
+  },
+  async snap(r) {
+    await loadScript("vendor/html2canvas-pro.min.js");
+    const fn = typeof window.html2canvas === "function" ? window.html2canvas : window.html2canvas && window.html2canvas.default;
+    const canvas = await fn(document.body, {
+      x: r.left + window.scrollX, y: r.top + window.scrollY, width: r.width, height: r.height,
+      scale: Math.min(2, window.devicePixelRatio || 1), backgroundColor: getComputedStyle(document.body).backgroundColor, logging: false,
+      ignoreElements: el => !!(el.classList && el.classList.contains("bd-root")),
+    });
+    return shrinkImage(canvas);
+  },
+  // ----- 选中文字 → 冒气泡 -----
+  listen() {
+    const later = e => setTimeout(() => this.onSelect(e), 0);
+    document.addEventListener("mouseup", later);
+    document.addEventListener("keyup", e => { if (e.key === "Shift" || e.shiftKey) later(null); });
+    let st = null;
+    document.addEventListener("selectionchange", () => { if (!this.touch) return; clearTimeout(st); st = setTimeout(() => this.onSelect(null), 500); });
+    document.addEventListener("touchstart", () => { this.touch = true; }, { passive: true });
+    document.addEventListener("mousedown", e => { this.touch = false; if (!e.target.closest(".bd-sel")) this.hideSel(); });
+    let dt = 0;
+    const dodgeSoon = ms => { clearTimeout(dt); dt = setTimeout(() => this.dodge(), ms || 180); };
+    window.addEventListener("scroll", () => { this.hideSel(); dodgeSoon(); }, { passive: true });
+    window.addEventListener("resize", () => { this.place(); dodgeSoon(); });
+    window.addEventListener("hashchange", () => { this.hideSel(); setTimeout(() => this.refresh(), 0); dodgeSoon(400); });
+    document.addEventListener("click", () => dodgeSoon(250));
+    dodgeSoon(600);
+    document.addEventListener("paste", e => { if (this.open && !(e.target.closest && e.target.closest("textarea, input, [contenteditable], .CodeMirror"))) this.onPaste(e); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape") { this.hideSel(); if (this.open && this.panel.contains(document.activeElement)) this.toggle(false); } });
+    let raf = 0;
+    document.addEventListener("pointermove", e => { this.idleAt = Date.now(); if (this.root.classList.contains("sleep")) this.mood(null); if (raf) return; raf = requestAnimationFrame(() => { raf = 0; this.look(e.clientX, e.clientY); }); }, { passive: true });
+    setInterval(() => { if (!this.open && Date.now() - this.idleAt > 180000 && !this.root.classList.contains("think")) this.mood("sleep"); }, 15000);
+  },
+  onSelect(e) {
+    if (this.capturing) return;
+    if (e && e.target && e.target.closest && e.target.closest(".bd-sel")) return;
+    let text = "", rect = null;
+    const ae = document.activeElement, pt = e ? { left: e.clientX, right: e.clientX, top: e.clientY, bottom: e.clientY } : null;
+    const cm = ae && ae.closest && ae.closest(".CodeMirror");
+    if (cm && cm.CodeMirror) { text = cm.CodeMirror.getSelection(); rect = pt || cm.getBoundingClientRect(); }
+    else if (ae && (ae.tagName === "TEXTAREA" || ae.tagName === "INPUT") && ae.selectionEnd > ae.selectionStart) {
+      if (ae.closest(".bd-root")) { this.hideSel(); return; }
+      text = ae.value.slice(ae.selectionStart, ae.selectionEnd); rect = pt || ae.getBoundingClientRect();
+    } else {
+      const ws = window.getSelection();
+      text = ws ? String(ws) : "";
+      if (text.trim() && ws.rangeCount) { const q = ws.getRangeAt(0).getBoundingClientRect(); rect = q.width || q.height ? q : pt; }
+    }
+    text = (text || "").trim();
+    if (text.length < 2 || text.length > 6000 || !rect) { this.hideSel(); return; }
+    this.selText = text; this.selWhere = this.pageWhere();
+    this.sel.hidden = false;
+    const w = this.sel.offsetWidth || 200, below = rect.bottom + 8 + 40 < window.innerHeight;
+    this.sel.style.top = (below ? rect.bottom + 8 : Math.max(8, rect.top - 44)) + "px";
+    this.sel.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - w - 8)) + "px";
+    this.look(rect.left, rect.top); this.hop();
+  },
+  hideSel() { if (this.sel) this.sel.hidden = true; },
+  fromSel(kind) {
+    const text = this.selText, where = this.selWhere;
+    this.hideSel();
+    if (!text) return;
+    if (kind === "ask") { this.setQuote(text, where); this.toggle(true); return; }
+    const q = { text, where };
+    if (kind === "explain") this.ask("用大白话解释我选中的这段：它在说什么、为什么这样，必要时举个例子；如果和面试有关，补一句面试里怎么答。", "解释", q);
+    else this.ask("根据我选中的这段，出一道最可能被面试官问到的题考我。只出题，等我回答后再点评：哪里想错了、更好的答法、下次怎么想。", "考我", q);
+  },
+  // ----- 宠物：眼睛跟着鼠标、思考 / 睡觉 / 跳一下、说话、拖动 -----
+  look(x, y) {
+    if (!this.pet || this.root.classList.contains("sleep")) return;
+    const r = this.pet.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height * 0.45;
+    const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 160) * 2.6;
+    for (const p of this.pet.querySelectorAll(".bd-pupil, .bd-shine")) p.style.transform = `translate(${(dx / d * k).toFixed(2)}px, ${(dy / d * k).toFixed(2)}px)`;
+  },
+  mood(m) { this.root.classList.remove("think", "sleep"); if (m) this.root.classList.add(m); },
+  hop() { this.root.classList.remove("hop"); void this.pet.offsetWidth; this.root.classList.add("hop"); setTimeout(() => this.root.classList.remove("hop"), 600); },
+  talk(text, ms) { if (this.open) return; this.say.textContent = text; this.say.hidden = false; clearTimeout(this.sayT); this.sayT = setTimeout(() => { this.say.hidden = true; }, ms || 5000); this.placeSay(); },
+  tuck(v) { this.root.classList.toggle("tucked", v); LS.set("tiyan:buddy:hidden", v); if (v) { this.panel.hidden = true; this.open = false; this.root.classList.remove("opened"); } },
+  drag() {
+    let sx = 0, sy = 0, ox = 0, oy = 0, moved = false, down = false;
+    this.pet.addEventListener("pointerdown", e => { down = true; moved = false; sx = e.clientX; sy = e.clientY; const r = this.pet.getBoundingClientRect(); ox = r.left; oy = r.top; this.pet.setPointerCapture(e.pointerId); });
+    this.pet.addEventListener("pointermove", e => {
+      if (!down) return;
+      if (!moved && Math.hypot(e.clientX - sx, e.clientY - sy) < 6) return;
+      moved = true; this.root.classList.add("dragging");
+      const s = this.pet.offsetWidth;
+      const x = Math.max(4, Math.min(window.innerWidth - s - 4, ox + e.clientX - sx)), y = Math.max(4, Math.min(window.innerHeight - s - 4, oy + e.clientY - sy));
+      this.pos = { right: window.innerWidth - x - s, bottom: window.innerHeight - y - s };
+      this.place();
+    });
+    this.pet.addEventListener("pointerup", () => { if (!down) return; down = false; this.root.classList.remove("dragging"); if (moved) LS.set("tiyan:buddy:pos", this.pos); else this.toggle(); });
+  },
+  place() {
+    if (!this.pet) return;
+    const p = this.pos || LS.get("tiyan:buddy:pos", null), s = this.pet.offsetWidth || 64;
+    const right = p ? Math.max(4, Math.min(window.innerWidth - s - 4, p.right)) : null, bottom = p ? Math.max(4, Math.min(window.innerHeight - s - 4, p.bottom)) : null;
+    this.pet.style.right = right == null ? "" : right + "px"; this.pet.style.bottom = bottom == null ? "" : bottom + "px";
+    if (this.open && window.innerWidth > 720) {
+      // 上方放得下就放上方，其次下方，都不够就放在宠物旁边；面板不能盖住宠物
+      const W = window.innerWidth, H = window.innerHeight, r = this.pet.getBoundingClientRect(), pw = Math.min(420, W - 24);
+      const above = r.top - 22, below = H - r.bottom - 22, onRight = r.left + r.width / 2 > W / 2;
+      let ph = Math.min(640, H - 24), left, top;
+      if (above >= Math.min(ph, 520) || below >= Math.min(ph, 520)) {
+        const up = above >= below;
+        ph = Math.min(ph, up ? above : below);
+        left = onRight ? Math.max(12, r.right - pw) : Math.min(W - pw - 12, r.left);
+        top = up ? r.top - ph - 10 : r.bottom + 10;
+      } else {
+        left = onRight ? Math.max(12, r.left - pw - 12) : Math.min(W - pw - 12, r.right + 12);
+        top = Math.max(12, Math.min(H - ph - 12, r.top + r.height / 2 - ph / 2));
+      }
+      Object.assign(this.panel.style, { left: left + "px", top: top + "px", width: pw + "px", height: ph + "px" });
+    } else Object.assign(this.panel.style, { left: "", top: "", width: "", height: "" });
+    this.placeSay();
+  },
+  // 没被拖过时自动避让：身下压着按钮 / 链接 / 输入框就往上挪，最多挪 5 格
+  dodge() {
+    if (!this.pet || this.pos || LS.get("tiyan:buddy:pos", null) || this.root.classList.contains("tucked") || this.root.classList.contains("dragging")) return;
+    const blocked = () => {
+      const r = this.pet.getBoundingClientRect();
+      return [[r.left + 8, r.top + 10], [r.right - 8, r.top + 10], [r.left + 8, r.bottom - 8], [r.right - 8, r.bottom - 8], [r.left + r.width / 2, r.top + r.height / 2]]
+        .some(([x, y]) => document.elementsFromPoint(x, y).some(el => !el.closest(".bd-root") && el.closest("button, a, input, textarea, select, label, .CodeMirror, .chip, [role=button]")));
+    };
+    let off = 0;
+    this.root.classList.add("measuring");
+    for (let i = 0; i <= 5; i++) { this.pet.style.setProperty("--bd-dodge", off + "px"); if (!blocked()) break; off += 52; }
+    if (off > 52 * 5) { off = 0; this.pet.style.setProperty("--bd-dodge", "0px"); }
+    this.root.classList.remove("measuring");
+    this.placeSay();
+  },
+  placeSay() {
+    if (!this.say || this.say.hidden) return;
+    const r = this.pet.getBoundingClientRect(), w = this.say.offsetWidth || 220;
+    this.say.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w + 30)) + "px";
+    this.say.style.top = Math.max(8, r.top - this.say.offsetHeight - 10) + "px";
+  },
+};
+
 // ---------- 启动 ----------
 (function boot() {
   Store.init();
@@ -7056,6 +7495,7 @@ function sysMarkdown(x, st) {
   render();
   Py.start();
   AI.init();
+  Buddy.init();
   // 可安装的网页应用：缓存页面、前端库和 Python 运行环境，离线也能刷题判题
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     navigator.serviceWorker.register("sw.js").catch(() => { /* 不支持就算了 */ });
