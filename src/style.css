@@ -836,7 +836,7 @@ select.btn { padding-right: 8px; }
 .fs-editor { min-width: 0; }
 
 /* 导航变长后：中等宽度下“正常”状态只留圆点，需要处理的状态仍显示文字 */
-@media (max-width: 1360px) and (min-width: 1101px) { .schip.ok .schip-t { display: none; } .schip.ok { padding: 6px; } .nav a { padding: 6px 10px; } }
+@media (max-width: 1520px) and (min-width: 1101px) { .schip.ok .schip-t { display: none; } .schip.ok { padding: 6px; } .nav a { padding: 6px 10px; } }
 @media (max-width: 1280px) and (min-width: 1101px) { .nav a { padding: 6px 7px; font-size: 13.5px; } .brand small, .brand-sub { display: none; } }
 
 /* 小眼：自定义形象 */
@@ -895,3 +895,21 @@ select.btn { padding-right: 8px; }
 .bd-mini .bd-z, .bd-mini .bd-think { display: none; }
 .bd-mini .bd-bod, .bd-mini .bd-star, .bd-mini .bd-sheen, .bd-mini .bd-hand { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .bd-star, .bd-sheen, .bd-hand, .bd-d { animation: none !important; } }
+
+/* ---------- 面经 ---------- */
+.iv-bars { display: flex; align-items: flex-end; gap: 10px; height: 160px; padding-top: 10px; overflow-x: auto; }
+.iv-bar { display: grid; grid-template-rows: 1fr auto auto; justify-items: center; gap: 2px; height: 100%; min-width: 34px; text-decoration: none !important; color: var(--ink-2); }
+.iv-bar i { align-self: end; width: 22px; border-radius: 5px 5px 2px 2px; background: var(--accent); display: block; min-height: 4px; }
+.iv-bar:hover i { background: var(--red); }
+.iv-bar span { font-size: 12px; font-weight: 600; }
+.iv-bar small { font-size: 11px; color: var(--ink-3); }
+.iv-talk { display: grid; gap: 6px; max-height: 70vh; overflow: auto; }
+.iv-turn { display: grid; grid-template-columns: 44px 52px minmax(0, 1fr); gap: 8px; font-size: 14px; padding: 4px 6px; border-radius: 6px; }
+.iv-turn b { color: var(--accent); font-weight: 600; }
+.iv-turn.me { background: var(--surface-2); }
+.iv-turn.me b { color: var(--red); }
+.iv-sub { margin-left: 18px; }
+.iv-md table { font-size: 13px; }
+.iv-md .md table, .iv-md table { display: block; overflow-x: auto; }
+.iv-page .grid-2 { align-items: start; }
+@media (min-width: 1521px) { .topbar-in { max-width: 1520px; } }

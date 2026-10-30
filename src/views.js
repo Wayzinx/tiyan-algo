@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["sd", "设计编码"], ["fs", "全栈"], ["cap", "项目实战"], ["mock", "模拟面试"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["sd", "设计编码"], ["fs", "全栈"], ["cap", "项目实战"], ["mock", "模拟面试"], ["iv", "面经"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -13,6 +13,8 @@ function parseRoute() {
   if (t === "cap") return { view: "caps" };
   if (t === "sd") return { view: "sd", sub: "" };
   if (t.startsWith("sd-")) return { view: "sd", sub: t.slice(3) };
+  if (t === "iv") return { view: "iv", sub: "" };
+  if (t.startsWith("iv-")) return { view: "iv", sub: t.slice(3) };
   if (t === "fs") return { view: "fs", sub: "" };
   if (t.startsWith("fs-")) return { view: "fs", sub: t.slice(3) };
   if (t === "data") return { view: "data" };
@@ -504,4 +506,4 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), iv: r => viewIV(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };

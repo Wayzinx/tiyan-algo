@@ -40,6 +40,7 @@ cd ~/tiyan-algo && node server.mjs                                         # 打
   - 算法题独立校验：`oracles.py`（每题的暴力解 + 随机小输入 + 性能用的大输入），`gen.py` 会交叉验证参考解
   - 设计编码：`sd/*.py`（12 道积木题 + 10 道设计题；`EXTRAS` 给每道设计题配 10 问压力追问 / 指标口径 / 技术选型五句；`toolbox.py` 是机制工具箱；`systems_*.py` 是 8 道系统设计实战题，参考建表语句由 `gen_sd.py` 转成 SQLite 真正建一遍）→ `gen_sd.py` → `sd.json`；对应的编码题在 `labs/sd_*.py`。系统设计页的 Mermaid 画图用 `public/vendor/mermaid.min.js`（MIT，按需加载），建表检查是 `harness.py` 里的 `check_ddl`
   - 全栈（`src/fs.js`，导航「全栈」）：`fs/*.py` → `gen_fs.py` → `fs.json`。排障演练（`cases_*.py`）、SQL 专项（`sql.py`：数据集 + 查询题 / 索引题 / 建表题，参考答案在 SQLite 里真跑，`harness.py` 的 `run_sql` / `run_index` 补了常用 MySQL 函数）、技术选型（`tech.py`）、代码评审（`reviews.py`）、语言专项（`lang_*.py`，说输出题由校验器真实运行：node / python3，Go 和 Java 用环境变量 `FS_GO` / `FS_JAVA` 指定）、前端手写（`handwrite.py`，测试工具 `fs_js.js` 浏览器 Worker 和 node 共用）；简历 × JD 出题复用模拟面试的简历
+  - 面经（`src/iv.js`，导航「面经」）：只有代码在仓库里。用户在浏览器里选择本机的面试复盘文件夹（`日期_时间_公司-岗位/report.md`、`transcript.json`、`followups.md`，`_bank/` 题库与弱项，`_qa/qa_bank.json` 话术题库），解析后存在浏览器 IndexedDB，不上传；真题再练按得分间隔 1 / 3 / 7 天复练
   - 小眼（`src/buddy.js`）：全站右下角的学习搭子。选中任何文字可直接问；框选页面截图（`public/vendor/html2canvas-pro.min.js`，MIT，按需加载）会同时附上从页面读出的文字；外部截图可粘贴 / 拖入。图片走 `deepseek-flash` 的 `image_url`，模型拒收时自动去掉图片重试。设计编码页把自己的老师上下文交给小眼（`Buddy.provide`）
   - 项目实战：`capstones/<id>/meta.py`（里程碑说明）、`skeleton/`（公开的项目骨架，打包成 `public/capstones/<id>.zip`）、`reference/`（参考实现，只在本机，不提交）→ `gen_capstones.py` → `capstones.json`
 
