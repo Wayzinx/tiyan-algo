@@ -326,7 +326,11 @@ function ivQA() {
   const st = IVS.get().q || {};
   return ivPage("iv-qa", IV.qa.title, `同步于 ${IV.qa.synced_at}。每道题先自己答，再对照优化话术和追问预案，AI 会告诉你差在哪。`,
     ...IV.qa.overview.map((o, i) => h("details", { class: "qa sd-sec", open: i === 0 }, h("summary", null, o.title), h("div", { class: "iv-md" }, mdEl(o.md, "small")))),
-    ...IV.qa.sections.filter(s => s.items.length || s.intro).map(s => h("section", { class: "panel" }, h("h2", null, s.title), s.items.length ? h("div", { class: "scroll-x" }, h("table", { class: "ptable" }, h("tbody", null, s.items.map(id => { const x = IV.qa.items.find(y => y.id === id); const r = st[id]; return h("tr", { class: "sd-row", onclick: () => go("iv-qa-" + id) }, h("td", { class: "mono" }, id), h("td", null, h("a", { href: "#iv-qa-" + id }, x.title)), h("td", { class: "small muted" }, clip(x.source, 40)), h("td", { class: "num small" }, r && r.ev ? r.ev.score + " 分" : "—")); })))) : h("div", { class: "iv-md" }, mdEl(s.intro, "small")))));
+    ...IV.qa.sections.filter(s => s.items.length || s.intro || (s.notes || []).length).map(s => h("section", { class: "panel" }, h("h2", null, s.title),
+      s.intro ? h("div", { class: "iv-md" }, mdEl(s.intro, "small")) : "",
+      s.items.length ? h("div", { class: "scroll-x" }, h("table", { class: "ptable" }, h("tbody", null, s.items.map(id => { const x = IV.qa.items.find(y => y.id === id); const r = st[id]; return h("tr", { class: "sd-row", onclick: () => go("iv-qa-" + id) }, h("td", { class: "mono" }, id), h("td", null, h("a", { href: "#iv-qa-" + id }, x.title), x.group ? h("div", { class: "small faint" }, x.group) : ""), h("td", { class: "small muted" }, clip(x.source.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1"), 40)), h("td", { class: "num small" }, r && r.ev ? r.ev.score + " 分" : "—")); })))) : "",
+      // 没有 Q 编号的小节（分组说明、补充专题）也要显示，第一段默认展开
+      (s.notes || []).length ? h("div", { class: "stack", style: "gap:6px" }, h("div", { class: "small faint" }, s.items.length ? "本组还有这些补充内容：" : ""), ...s.notes.map((n, i) => h("details", { class: "qa", open: i === 0 }, h("summary", null, n.title), h("div", { class: "iv-md" }, mdEl(n.md, "small"))))) : "")));
 }
 function ivQAItem(x) {
   const box = h("div", { class: "stack" }), path = ["q", x.id], jk = "ivq:" + x.id;
@@ -350,7 +354,7 @@ ${IV.resume ? "【简历（节选）】" + clip(IV.resume, 1200) : ""}
     const evBox = h("div", { class: "stack sd-ai" });
     if (IV_JOBS[jk]) evBox.append(fsPending()); else if (r.err) evBox.append(fsErr(r.err, ask)); else if (r.ev) ivEvalView(evBox, r.ev);
     box.append(h("section", { class: "panel" }, h("p", { class: "sd-prompt", style: "font-size:18px" }, `${x.id} · ${x.title}`),
-      x.source ? h("div", { class: "small faint" }, "出处：" + x.source) : "", x.focus ? h("div", { class: "small" }, h("b", null, "考察点："), x.focus) : "", x.last ? h("div", { class: "callout" }, h("b", null, "上次的问题　"), x.last) : "",
+      x.source ? h("div", { class: "small faint" }, "出处：", mdEl(x.source, "small iv-inline")) : "", x.group ? h("div", { class: "small faint" }, "分组：" + x.group) : "", x.focus ? h("div", { class: "small" }, h("b", null, "考察点："), x.focus) : "", x.last ? h("div", { class: "callout" }, h("b", null, "上次的问题　"), x.last) : "",
       ta, h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", disabled: !!IV_JOBS[jk], onclick: ask }, r.ev ? "改完了，重新点评" : "提交，对照话术点评"), vb, vs, !open ? h("button", { class: "btn ghost sm", type: "button", onclick: () => { IVS.patch(path.concat("peek"), true); draw(); } }, "直接看话术") : ""), evBox),
       open ? h("section", { class: "panel" }, h("h2", null, "优化话术"), mdEl(x.answer || "（这题没有写话术）"), x.followups.length ? h("div", null, h("h3", null, "追问预案"), ...x.followups.map(f => { const d = h("details", { class: "qa" }, h("summary", null, f.q)); d.append(mdEl(f.a, "small")); return d; })) : "", ...x.extras.map(e => h("details", { class: "qa" }, h("summary", null, e.label), mdEl(e.md, "small")))) : "",
       (() => { const i = IV.qa.items.indexOf(x), p = IV.qa.items[i - 1], n = IV.qa.items[i + 1]; return h("div", { class: "spread" }, p ? h("a", { class: "btn ghost sm", href: "#iv-qa-" + p.id }, "← " + p.id) : h("span"), n ? h("a", { class: "btn sm", href: "#iv-qa-" + n.id }, n.id + " →") : h("span")); })());

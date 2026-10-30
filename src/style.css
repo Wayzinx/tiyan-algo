@@ -913,3 +913,4 @@ select.btn { padding-right: 8px; }
 .iv-md .md table, .iv-md table { display: block; overflow-x: auto; }
 .iv-page .grid-2 { align-items: start; }
 @media (min-width: 1521px) { .topbar-in { max-width: 1520px; } }
+.iv-inline, .iv-inline p { display: inline; margin: 0; }
