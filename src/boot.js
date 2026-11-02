@@ -2,6 +2,7 @@
 (function boot() {
   Store.init();
   updateChips();
+  initThemeMenu();
   window.addEventListener("hashchange", render);
   render();
   Py.start();

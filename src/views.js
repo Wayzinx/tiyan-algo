@@ -87,7 +87,7 @@ function updateChips() {
 }
 
 // ---------- 通用片段 ----------
-const CIRCLE = '<svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M10 25 C 4 10, 38 2, 62 4 S 99 14, 94 27 S 52 41, 24 36 S 2 24, 16 11" fill="none" style="stroke:var(--red)" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
+const CIRCLE = '<svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path d="M10 25 C 4 10, 38 2, 62 4 S 99 14, 94 27 S 52 41, 24 36 S 2 24, 16 11" fill="none" style="stroke:var(--brand)" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>';
 function patternTiles() {
   return h("div", { class: "pmap" }, PATTERNS.map(pt => {
     const ps = S.all.filter(p => p.pattern === pt.key);
@@ -507,3 +507,33 @@ function viewAsk() {
 }
 
 const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), iv: r => viewIV(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };
+
+// ---------- 外观：配色（雾紫 / 青瓷 / 暖杏）和深浅色 ----------
+const THEME_PALETTES = [["violet", "雾紫", "#7C6CFF", "#3D8BFF"], ["teal", "青瓷", "#0E9590", "#2A9DD8"], ["sand", "暖杏", "#C4562D", "#DE8A3B"]];
+function initThemeMenu() {
+  const btn = $("#theme-btn");
+  if (!btn) return;
+  let pop = null;
+  const close = () => { if (pop) { pop.remove(); pop = null; document.removeEventListener("mousedown", away, true); } };
+  const away = e => { if (pop && !pop.contains(e.target) && !btn.contains(e.target)) close(); };
+  const set = patch => { LS.set("tiyan:theme", Object.assign({}, LS.get("tiyan:theme", {}), patch)); window.applyTheme(); draw(); };
+  const draw = () => {
+    if (!pop) return;
+    const t = Object.assign({ palette: "violet", mode: "system" }, LS.get("tiyan:theme", {}));
+    pop.textContent = "";
+    pop.append(h("div", { class: "theme-h" }, "配色"),
+      h("div", { class: "theme-pals" }, THEME_PALETTES.map(([k, name, a, b]) => h("button", { type: "button", class: "theme-pal" + (t.palette === k ? " on" : ""), onclick: () => set({ palette: k }) }, h("i", { style: `background:linear-gradient(135deg, ${a}, ${b})` }), name))),
+      h("div", { class: "theme-h" }, "深浅"),
+      h("div", { class: "seg theme-seg" }, [["system", "跟随系统"], ["light", "浅色"], ["dark", "深色"]].map(([k, name]) => h("button", { type: "button", class: t.mode === k ? "on" : "", onclick: () => set({ mode: k }) }, name))));
+  };
+  btn.addEventListener("click", () => {
+    if (pop) { close(); return; }
+    pop = h("div", { class: "theme-pop", role: "dialog", "aria-label": "外观" });
+    document.body.append(pop);
+    const r = btn.getBoundingClientRect();
+    pop.style.top = (r.bottom + 8) + "px"; pop.style.right = Math.max(8, window.innerWidth - r.right) + "px";
+    draw();
+    document.addEventListener("mousedown", away, true);
+  });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+}
