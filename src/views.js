@@ -20,7 +20,7 @@ function parseRoute() {
   if (t === "data") return { view: "data" };
   if (t === "think") return { view: "think", sub: "" };
   if (t.startsWith("think-")) return { view: "think", sub: t.slice(6) };
-  if (["bg", "bg-read", "bg-cards", "bg-probe"].includes(t)) return { view: "bg", sub: t };
+  if (["bg", "bg-comp", "bg-read", "bg-cards", "bg-probe"].includes(t)) return { view: "bg", sub: t };
   if (t.startsWith("cap-")) { const [id, mid] = t.slice(4).split("--"); return { view: "cap", id, mid }; }
   return { view: "home" };
 }

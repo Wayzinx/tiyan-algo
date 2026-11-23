@@ -1,0 +1,95 @@
+PROFILE = dict(
+    id="container", order=12, name="Docker / Kubernetes", cat="容器与编排", chapter="os",
+    one="Docker 把应用和依赖打包成可复用的镜像，Kubernetes 在多台机器上调度、运行和更新容器。",
+    say="Docker 解决的是应用怎么打包和运行：镜像包含程序和依赖，容器是镜像跑起来的实例，通常共享所在 Linux 环境的内核，不像虚拟机每台都跑自己的内核。Kubernetes 解决的是一批容器怎么长期跑：用 Pod 部署，用 Deployment 管副本和发布，用 Service 提供稳定访问入口。好处是测试环境易复现，发布、扩容和故障替换有统一机制；代价是网络、存储、权限和资源排查更复杂。跨节点部署或在集群里并行跑测试时值得考虑；单机小服务能接受宿主机故障停机，用 Docker 或 Compose 就够了。",
+    points=[
+        "镜像是打包产物，容器是运行实例；Linux 容器共享所在环境的内核",
+        "Pod 是调度单位，Deployment 管副本与发布，Service 给访问方稳定地址",
+        "readiness 控流量，liveness 判重启，startup 给慢启动留窗口",
+        "requests 用于调度，CPU limit 可能限速，内存超限可能 OOMKilled",
+        "滚动发布要验就绪、摘流和回滚；回滚不会撤销数据库变化",
+        "Compose 适合单机测试环境；集群里的有限测试任务适合用 Job",
+    ],
+    features=[
+        dict(name="镜像与容器", desc="镜像打包程序、运行时和依赖，可按 digest 固定内容；容器从镜像启动，有独立的可写层。要在容器替换后保留数据，就放在持久卷或外部存储。"),
+        dict(name="容器隔离", desc="Linux 容器通常靠 namespaces 隔离进程和网络等视图，靠 cgroups 管资源，共享所运行环境的内核；虚拟机有自己的客体内核，可以隔离不同的系统。"),
+        dict(name="Pod / Deployment / Service", desc="Pod 是调度单位，同 Pod 容器通常共享网络；Deployment 管应用副本和更新；带选择器的 Service 把稳定地址对应到一组后端 Pod。"),
+        dict(name="三类探针", desc="readiness 失败让 Pod 退出常规 Service 的就绪后端，不重启；liveness 持续失败会触发容器重启；startup 成功前不运行另外两种，适合慢启动应用。"),
+        dict(name="资源 requests / limits", desc="调度器按 requests 做资源分配判断；CPU limit 触顶可能触发限速，内存 limit 触顶时可能触发 OOM kill。指定了资源范围不等于应用健康。"),
+        dict(name="滚动发布与回滚", desc="Deployment 可按配置逐步替换副本，限制更新期间新增和不可用的数量；新版本异常要主动暂停或回退 Pod 模板，不能指望系统自动撤销发布。"),
+        dict(name="有限任务用 Job", desc="Job 管一次性任务的完成状态和失败重试，可把 Python 测试做成独立镜像交给集群排队调度；结果和日志要在清理前保存。"),
+    ],
+    pros=[
+        dict(point="同一份交付产物更好复现", why="构建一次，按镜像 digest 跑测试和发布，减少依赖版本漂移；发现问题时可以拿同一镜像复测，再比对运行配置。"),
+        dict(point="测试环境启停快", why="用 Compose 描述应用和数据库等依赖，每次用独立项目和测试数据启动，减少手工搭建和多人抢同一套环境。"),
+        dict(point="多实例发布和替换有统一机制", why="Deployment 按声明保持期望副本数，Pod 异常后可重建；结合探针和稳定的 Service 地址，调用方不必跟着换地址。"),
+        dict(point="测试任务可并行也能隔离资源", why="把不同分片用例放进独立 Job，给每份任务单独的资源和超时，避免一批压测耗尽整套共享环境。"),
+    ],
+    cons=[
+        dict(point="镜像一致不等于现场一致", impact="环境变量、密钥、依赖数据、节点架构和内核都可能不同；本地通过，不代表线上权限、网络或内存行为一致。"),
+        dict(point="Kubernetes 增加运维面", impact="除了应用，还要管节点、网络、证书、权限和监控；Pod 跑起来但 Service 不通时，要跨多个对象找证据。"),
+        dict(point="资源配错会让故障变隐蔽", impact="requests 过大可能一直排不上；过低容易过度装箱，CPU 限速导致 P99 升高，内存触限可能反复 OOMKilled。"),
+        dict(point="有状态服务尤其难运维", impact="Pod 可替换不等于数据可恢复，持久卷的挂载、备份、恢复和数据副本切换仍需单独演练，回滚镜像也不会回滚数据。"),
+    ],
+    use=[
+        dict(scene="为接口回归搭独立环境", why="用 Compose 固定应用、数据库和依赖版本，启动后等依赖就绪，导入确定的数据再跑 pytest，跑完清理该套测试环境。"),
+        dict(scene="测试和生产使用同一交付产物", why="把构建好的应用镜像按 digest 从测试推进到生产；数据库连接等配置各环境单独注入，避免为每个环境重打包。"),
+        dict(scene="多个服务需要跨节点扩容和滚动发布", why="用 Deployment 管副本与上线节奏，用 Service 稳定访问；节点故障时可在有容量且满足调度条件的节点补副本。"),
+        dict(scene="在集群里并行跑测试任务", why="用 Job 运行靠近被测系统的 pytest，按用例分片和命名空间隔离数据，单独收集退出码、测试报告和容器日志。"),
+    ],
+    skip=[
+        dict(scene="单机小服务，峰值压测一台机器跑得动，主机故障允许人工恢复", alt="一个容器用 Docker，多个依赖用 Docker Compose", why="不要求跨节点调度、自动故障转移或频繁滚动发布；少维护一个集群，把精力放到监控、备份和单机恢复演练。"),
+        dict(scene="只跑纯 Python 单测，没有外部中间件或系统依赖", alt="虚拟环境 + 锁定依赖的 CI runner", why="解释器和依赖版本固定后能稳定复现，没必要为每次单测构建镜像，更不必先启动集群。"),
+        dict(scene="测试必须切换内核版本，或明确要求独立客体内核", alt="虚拟机", why="普通容器共享所在环境的内核，换镜像并不能换正在运行的内核；需要单独启动不同内核来验证时选虚拟机。"),
+        dict(scene="团队不会值守集群，只需要跑少量稳定服务", alt="已有托管运行环境或虚拟机上的服务管理器", why="现有平台满足发布、监控和恢复目标，就不用自建编排控制面；复杂度要和团队的运维能力匹配。"),
+    ],
+    decide=[
+        "只是想把环境打包，还是必须跨节点调度和滚动发布？一台机器压测达标且能接受宿主机停机时，先用 Compose。",
+        "故障多久必须恢复、能接受丢多少数据？分别为计算副本和数据副本设计恢复方案，不把 Pod 重建当数据恢复。",
+        "测试能否固定镜像、平台和依赖数据？有跨架构环境就核对实际运行镜像、依赖版本和关键配置差异。",
+        "峰值 CPU、内存和启动耗时是多少？先压测测量，再定 requests、limits 和探针窗口，别复制其他服务的参数。",
+        "发布中能否混跑新旧版本？检查数据库变更、协议和配置是否双向兼容，再定滚动策略和回滚步骤。",
+        "谁负责配额、权限和清理？共享集群先定命名空间、任务超时、日志留存和容量配额，再放大测试并发。",
+    ],
+    vs=[
+        dict(other="Docker Compose vs Kubernetes", diff="Compose 把一台机器上的多容器应用和依赖一起启停，适合本地或小规模单机部署；K8s 侧重多节点调度、服务发现、自愈和发布，运维复杂度也更高。"),
+        dict(other="容器 vs 虚拟机", diff="容器把应用连同用户态依赖打包，通常共享所在 Linux 环境的内核；虚拟机运行完整的客体操作系统，启动和资源开销通常更高，但可以使用独立内核。"),
+        dict(other="Deployment vs Job", diff="Deployment 让无状态服务持续有足量副本；Job 跑完即可退出，按规则记录成功或重试，适合回归、批处理，不要用常驻副本维持一次性测试。"),
+    ],
+    test=[
+        dict(area="环境复现与数据隔离", items=[
+            "用 docker compose config 核对解析后的配置，在干净环境按固定镜像启动依赖，等就绪并导入同一份数据，重复跑 pytest 比较结果",
+            "并行启两套 Compose 项目，检查端口、卷和库名不冲突；测试中重建应用容器，确认该保留的数据仍在、临时数据不会串到别的环境",
+            "用 docker inspect 或 kubectl get pod <Pod> -o yaml 对比实际镜像 ID 和挂载；跨架构时用 kubectl get nodes -L kubernetes.io/arch 核对调度节点，记录配置时脱敏",
+        ]),
+        dict(area="探针和服务发现", items=[
+            "让应用慢启动、主动不就绪、模拟卡死，分别观察 startup 是否给足时间、readiness 是否摘流不重启、liveness 是否达到阈值后重启",
+            "用 kubectl get pods -w 和 kubectl get endpointslice -l kubernetes.io/service-name=<服务名> -o yaml 对照 Ready、重启次数及端点的 ready 条件，并从同命名空间发请求验证实际流量",
+        ]),
+        dict(area="资源与 OOM", items=[
+            "在测试命名空间让 requests 大于可调度容量，用 kubectl describe pod <Pod> 验证 Pending 和 FailedScheduling；恢复合理值后应能调度",
+            "用受控负载让进程逼近内存 limit、让 CPU 碰到配额，比较 P99、CPU 限速和内存峰值；查 Last State 是否为 OOMKilled，不单凭退出码 137 判定",
+        ]),
+        dict(area="发布、回滚和节点故障", items=[
+            "持续请求 Service 并记录响应版本、错误率和 P99，用 kubectl rollout status deployment/<名称> 观察新旧副本交替；测试在途请求是否能在终止宽限期内完成",
+            "发布一个 readiness 不通过的版本，检查是否保留可用副本；按预案执行 kubectl rollout undo deployment/<名称>，验证旧版本恢复且能读取新版写过的数据",
+            "在独立测试集群模拟节点离线，用 kubectl get pods -o wide 看替代 Pod 的调度位置，对照恢复时间和流量错误率；验证其余节点有足够容量",
+        ]),
+        dict(area="K8s 上跑测试任务", items=[
+            "用 Job 跑通过、断言失败、卡住和 Pod 被替换四组样例，检查 backoffLimit、activeDeadlineSeconds 和 Job 状态；区分测试失败与环境失败，不用重跑掩盖断言失败",
+            "并行测试按分片隔离命名空间或数据前缀，检查 Pod 重跑是否重复造数据；先归档 pytest 的 JUnit XML 和日志，再按清理策略释放 Job 与测试数据",
+        ]),
+    ],
+    issues=[
+        dict(symptom="Pod 长时间 Pending", cause="未必是镜像问题，可能未调度、卷未绑定或调度后还在拉镜像", check="用 kubectl describe pod <Pod> 看 Events：FailedScheduling 查 requests、节点约束和可用资源，卷异常查 PVC，拉取异常查镜像地址与凭证。"),
+        dict(symptom="容器反复重启，看到 CrashLoopBackOff", cause="进程反复退出或探针反复判失败；若 Last State 是 OOMKilled，再区分容器上限与节点内存压力", check="先看 kubectl describe pod <Pod> 的 Last State 和 Events，再用 kubectl logs <Pod> -c <容器> --previous 查上一次实例日志；对齐内存峰值、limit 和节点事件。"),
+        dict(symptom="Pod Running，但 Service 连不上", cause="容器在运行不代表 Pod Ready，也可能是 Service selector 或 targetPort 配错", check="用 kubectl get pods --show-labels 对照 Service 选择器，查 EndpointSlice 的地址、端口和 ready；从集群内分别测 Pod 地址和 Service 地址，按层排查。"),
+        dict(symptom="滚动发布卡住，新版本始终没接流量", cause="镜像拉取失败、探针不过、新 Pod 无处调度，或更新策略与容量不匹配", check="看 kubectl rollout status、kubectl describe deployment <名称> 和新 Pod Events，核对启动耗时、可用副本数和调度容量，再决定修复或回退。"),
+    ],
+    followups=[
+        dict(q="镜像不是一样吗，为什么本地过了集群却失败？", a="镜像固定的是程序和镜像内依赖，不固定配置、密钥、节点架构、资源配额、网络和外部数据。先确认实际镜像，再对比配置与资源限制，最后从 Pod 内验证依赖连通和权限。"),
+        dict(q="数据库短暂不可用，要让 liveness 失败吗？", a="通常不要。liveness 用来发现应用自身卡死等重启能修复的问题；外部依赖抖动时重启所有副本可能扩大故障。确实不能接流量时，可让 readiness 按服务契约摘流，慢启动单独用 startup 保护。"),
+        dict(q="OOMKilled 和退出码 137 是一回事吗？", a="不是。137 常见于进程收到 SIGKILL，也可能来自强制终止等情况。先看 Pod 的 Last State 和容器状态原因，再对照容器用量、内存上限和节点内存事件；别一看 137 就调大 limit。"),
+        dict(q="执行了 rollout undo，为什么故障没完全恢复？", a="Deployment 回退的是 Pod 模板版本，不会撤销数据库迁移、持久卷数据或另行修改的配置。要验证旧代码还能读写当前数据，并对不能向下兼容的变更安排单独的恢复方案。"),
+    ],
+)

@@ -62,9 +62,100 @@ def check_chapter(ch, path, errors):
         if w in blob: errors.append(f"{cid} 含有不该出现的词「{w}」")
 
 
+PROFILE_KEYS = ["id", "order", "name", "cat", "one", "say", "points", "features", "pros", "cons", "use", "skip", "decide", "vs", "test", "issues", "followups"]
+
+
+def _objs(v, keys, lo, hi, tag, errors, minlen=None):
+    """v 是 lo–hi 个字典的列表，每个都有 keys 里的非空字符串字段；minlen 给出字段最短长度。"""
+    if not isinstance(v, list) or not (lo <= len(v) <= hi):
+        errors.append(f"{tag} 需要 {lo}–{hi} 项（现在 {len(v) if isinstance(v, list) else '不是列表'}）"); return
+    for i, x in enumerate(v):
+        if not isinstance(x, dict) or any(not isinstance(x.get(k), str) or not x.get(k).strip() for k in keys):
+            errors.append(f"{tag}[{i}] 需要字段 {keys}"); continue
+        for k, n in (minlen or {}).items():
+            if len(x[k]) < n: errors.append(f"{tag}[{i}].{k} 至少 {n} 字")
+        if set(x) - set(keys): errors.append(f"{tag}[{i}] 有未知字段 {sorted(set(x) - set(keys))}")
+
+
+def check_profile(pf, path, chapter_ids, errors):
+    pid = pf.get("id", "?") if isinstance(pf, dict) else "?"
+    tag = f"comp/{pid}"
+    if not isinstance(pf, dict): errors.append(f"{path} 没有 PROFILE 字典"); return
+    miss = [k for k in PROFILE_KEYS if not pf.get(k) and pf.get(k) != 0]
+    if miss: errors.append(f"{tag} 缺字段 {miss}"); return
+    if set(pf) - set(PROFILE_KEYS) - {"chapter"}: errors.append(f"{tag} 有未知字段 {sorted(set(pf) - set(PROFILE_KEYS) - {'chapter'})}")
+    if os.path.basename(path)[:-3] != pid: errors.append(f"{path} 文件名应该是 {pid}.py")
+    if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", pid): errors.append(f"{tag} id 只用小写字母数字和短横线")
+    if pf.get("chapter") and pf["chapter"] not in chapter_ids: errors.append(f"{tag} chapter={pf['chapter']} 不是已有章节")
+    if not (15 <= len(pf["one"]) <= 90): errors.append(f"{tag} one（一句话定位）15–90 字")
+    if not (120 <= len(pf["say"]) <= 420): errors.append(f"{tag} say（30 秒版）120–420 字（现在 {len(pf['say'])}）")
+    if not (3 <= len(pf["points"]) <= 6) or any(not isinstance(x, str) or not (6 <= len(x) <= 80) for x in pf["points"]): errors.append(f"{tag} points 3–6 个，每个 6–80 字")
+    _objs(pf["features"], ["name", "desc"], 4, 8, tag + " features", errors, {"desc": 20})
+    _objs(pf["pros"], ["point", "why"], 3, 6, tag + " pros", errors, {"why": 20})
+    _objs(pf["cons"], ["point", "impact"], 3, 6, tag + " cons", errors, {"impact": 20})
+    _objs(pf["use"], ["scene", "why"], 3, 7, tag + " use", errors, {"why": 15})
+    _objs(pf["skip"], ["scene", "alt", "why"], 3, 6, tag + " skip", errors, {"why": 15})
+    if not (3 <= len(pf["decide"]) <= 7) or any(not isinstance(x, str) or len(x) < 15 for x in pf["decide"]): errors.append(f"{tag} decide 3–7 条，每条至少 15 字")
+    _objs(pf["vs"], ["other", "diff"], 2, 4, tag + " vs", errors, {"diff": 30})
+    t = pf["test"]
+    if not isinstance(t, list) or not (4 <= len(t) <= 7) or any(not isinstance(g, dict) or not g.get("area") or not isinstance(g.get("items"), list) or not (2 <= len(g["items"]) <= 6) for g in t):
+        errors.append(f"{tag} test 需要 4–7 组 {{area, items: 2–6 条}}")
+    _objs(pf["issues"], ["symptom", "cause", "check"], 3, 6, tag + " issues", errors, {"check": 10})
+    _objs(pf["followups"], ["q", "a"], 2, 5, tag + " followups", errors, {"a": 30})
+    blob = json.dumps(pf, ensure_ascii=False)
+    for w in FORBIDDEN:
+        if w in blob: errors.append(f"{tag} 含有不该出现的词「{w}」")
+
+
+def profile_md(pf):
+    """把画像拼成 Markdown：给站内检索和 AI 老师读。"""
+    L = [f"### {pf['name']}：{pf['one']}", "", "**30 秒版**：" + pf["say"], "", "### 核心特性"]
+    L += [f"- **{x['name']}**：{x['desc']}" for x in pf["features"]]
+    L += ["", "### 优点"] + [f"- **{x['point']}**：{x['why']}" for x in pf["pros"]]
+    L += ["", "### 缺点"] + [f"- **{x['point']}**：{x['impact']}" for x in pf["cons"]]
+    L += ["", "### 什么时候用"] + [f"- **{x['scene']}**：{x['why']}" for x in pf["use"]]
+    L += ["", "### 什么时候不用"] + [f"- **{x['scene']}** → {x['alt']}：{x['why']}" for x in pf["skip"]]
+    L += ["", "### 选型前先问"] + [f"- {x}" for x in pf["decide"]]
+    L += ["", "### 对比"] + [f"- **vs {x['other']}**：{x['diff']}" for x in pf["vs"]]
+    L += ["", "### 测试要点"] + [f"- **{g['area']}**：" + "；".join(g["items"]) for g in pf["test"]]
+    L += ["", "### 常见线上问题"] + [f"- {x['symptom']} ← {x['cause']}（排查：{x['check']}）" for x in pf["issues"]]
+    return "\n".join(L)
+
+
+def comp_chapter(chapter_ids, errors):
+    files = sorted(glob.glob(os.path.join(D, "comp", "*.py")))
+    if not files: return None
+    profiles, seen = [], set()
+    for f in files:
+        try:
+            spec = importlib.util.spec_from_file_location("comp_" + os.path.basename(f)[:-3], f)
+            m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+            pf = getattr(m, "PROFILE", None)
+        except Exception as e:
+            errors.append(f"{f} 导入失败：{e!r}"); continue
+        check_profile(pf, f, chapter_ids, errors)
+        if isinstance(pf, dict):
+            if pf.get("id") in seen: errors.append(f"comp/{pf.get('id')} id 重复")
+            seen.add(pf.get("id")); profiles.append(pf)
+    profiles.sort(key=lambda x: x.get("order", 99))
+    mp = os.path.join(D, "comp", "map.md")
+    cards = [dict(id="comp-" + pf["id"], q=f"说说你对 {pf['name']} 的理解：特性、优缺点，什么时候该用？", level=1, short=pf["say"], points=pf["points"],
+                  explain=profile_md(pf), followups=pf["followups"], pitfalls=[], hook="", profile=pf) for pf in profiles if isinstance(pf, dict) and pf.get("name")]
+    return dict(id="comp", order=0, name="组件画像", blurb="MySQL、Redis、MQ、ES……特性、优缺点、选型和测试要点",
+                map=open(mp, encoding="utf-8").read() if os.path.exists(mp) else "", cards=cards)
+
+
 def main():
     args = sys.argv[1:]
     only = args[args.index("--check") + 1] if "--check" in args else None
+    if only and only.startswith("comp/"):
+        errors = []
+        chapter_ids = {os.path.basename(f)[:-3] for f in glob.glob(os.path.join(D, "bg", "*.py"))}
+        spec = importlib.util.spec_from_file_location("one", os.path.join(D, only)); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+        check_profile(getattr(m, "PROFILE", None), os.path.join(D, only), chapter_ids, errors)
+        print(f"组件画像 {only}，字数 {len(json.dumps(getattr(m, 'PROFILE', {}), ensure_ascii=False))}")
+        if errors: print("\n".join("ERROR " + e for e in errors)); sys.exit(1)
+        print("OK（只校验，未写 bg.json）"); return
     files = [os.path.join(D, only)] if only else sorted(glob.glob(os.path.join(D, "bg", "*.py")))
     errors, chapters, ids = [], [], set()
     for f in files:
@@ -76,6 +167,9 @@ def main():
                 if c.get("id") in ids: errors.append(f"{c.get('id')} id 重复")
                 ids.add(c.get("id"))
             chapters.append(ch)
+    if not only:
+        comp = comp_chapter({c.get("id") for c in chapters}, errors)
+        if comp: chapters.append(comp)
     n = sum(len(c.get("cards", [])) for c in chapters)
     print(f"章节 {len(chapters)}，卡片 {n}，字数 {sum(len(json.dumps(c, ensure_ascii=False)) for c in chapters)}")
     if errors:

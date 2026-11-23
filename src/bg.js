@@ -4,7 +4,8 @@ const BG = (() => { try { return JSON.parse(document.getElementById("bg-data").t
 const BG_CARDS = BG.chapters.flatMap(ch => ch.cards.map(c => Object.assign({ chId: ch.id, chName: ch.name }, c)));
 const BG_BY = Object.fromEntries(BG_CARDS.map(c => [c.id, c]));
 const BG_LEVEL = { 1: "必会", 2: "常问", 3: "进阶" };
-const BG_TABS = [["bg", "总览"], ["bg-read", "学习"], ["bg-cards", "闪卡"], ["bg-probe", "模拟摸底"]];
+const BG_TABS = [["bg", "总览"], ["bg-comp", "组件画像"], ["bg-read", "学习"], ["bg-cards", "闪卡"], ["bg-probe", "模拟摸底"]];
+const BG_PROFILES = BG_CARDS.filter(c => c.profile);
 const BG_RATE = { bad: "不会", vague: "模糊", good: "会了" };
 
 const BGS = {
@@ -70,17 +71,18 @@ function bgGroups() {
   return BG.chapters.map(ch => ({
     id: ch.id, name: ch.name, blurb: ch.blurb,
     sections: [{ id: ch.id + "-map", title: "知识地图", course: ch.name, chId: ch.id, isMap: true, md: ch.map }]
-      .concat(ch.cards.map(c => Object.assign({ title: c.q, course: ch.name, md: "" }, BG_BY[c.id]))),
+      .concat(ch.cards.map(c => Object.assign({ title: c.profile ? `${c.profile.name} · ${c.profile.cat}` : c.q, course: ch.name, md: "" }, BG_BY[c.id]))),
   }));
 }
 function bgText(s) {
   if (s.isMap) return `### ${s.course} · 知识地图\n\n${s.md}`;
   return [`### ${s.q}`, s.alt && s.alt.length ? "其他问法：" + s.alt.join("；") : "", "30 秒版：" + s.short, "得分点：\n- " + s.points.join("\n- "), s.explain,
-    "易错：\n- " + s.pitfalls.join("\n- "), "测开视角：" + s.hook, s.followups.map(f => `追问：${f.q}\n答：${f.a}`).join("\n\n")].filter(Boolean).join("\n\n");
+    s.pitfalls.length ? "易错：\n- " + s.pitfalls.join("\n- ") : "", s.hook ? "测开视角：" + s.hook : "", s.followups.map(f => `追问：${f.q}\n答：${f.a}`).join("\n\n")].filter(Boolean).join("\n\n");
 }
 
 // 卡片「讲解」：30 秒版 → 得分点 → 讲透 → 易错 → 测开视角 → 自评
 function bgCardBody(c, onRated) {
+  if (c.profile) return bgProfileBody(c, onRated);
   const ex = h("div", { class: "md course-md" }); renderMd(ex, c.explain);
   return h("div", { class: "stack", style: "gap:18px" },
     h("div", { class: "row small" }, bgLevelTag(c), c.alt && c.alt.length ? h("span", { class: "faint" }, "也可能这样问：" + c.alt.join(" / ")) : ""),
@@ -90,6 +92,30 @@ function bgCardBody(c, onRated) {
     h("section", { class: "stack", style: "gap:6px" }, h("h3", null, "讲透"), ex),
     h("div", { class: "callout" }, h("b", null, "易错　"), h("ul", { class: "bg-list" }, c.pitfalls.map(p => h("li", null, p)))),
     h("div", { class: "callout blue" }, h("b", null, "测开视角　"), c.hook.replace(/^测开视角[：:]\s*/, "")),
+    bgRateRow(c, onRated));
+}
+function bgProfileBody(c, onRated) {
+  const pf = c.profile;
+  const sec = (title, sub, ...kids) => h("section", { class: "stack pf-sec", style: "gap:10px" }, h("div", { class: "spread" }, h("h3", null, title), sub ? h("span", { class: "small faint" }, sub) : ""), ...kids);
+  const list = (items, cls, a, b) => h("ul", { class: "pf-list " + cls }, items.map(x => h("li", null, h("b", null, x[a]), h("span", null, x[b]))));
+  return h("div", { class: "stack", style: "gap:22px" },
+    h("div", { class: "row small" }, bgLevelTag(c), h("span", { class: "tag" }, pf.cat), pf.chapter && BG.chapters.find(x => x.id === pf.chapter) ? h("button", { type: "button", class: "chip", onclick: () => bgOpenCard(pf.chapter + "-map") }, `机制细节见「${BG.chapters.find(x => x.id === pf.chapter).name}」章 →`) : ""),
+    h("p", { class: "pf-one" }, pf.one),
+    h("div", { class: "bg-short" }, h("div", { class: "bg-label" }, "30 秒版 · 被问“说说你对 " + pf.name + " 的理解”时这样说"), h("p", null, pf.say)),
+    h("section", { class: "stack", style: "gap:8px" }, h("h3", null, "得分点"), h("ol", { class: "bg-points" }, pf.points.map(p => h("li", null, p)))),
+    sec("核心特性", "", h("div", { class: "pf-feat" }, pf.features.map(f => h("div", null, h("b", null, f.name), h("p", null, f.desc))))),
+    h("div", { class: "pf-2col" },
+      sec("优点", "为什么", list(pf.pros, "good", "point", "why")),
+      sec("缺点", "代价是什么", list(pf.cons, "bad", "point", "impact"))),
+    h("div", { class: "pf-2col" },
+      sec("什么时候用", "业务场景", list(pf.use, "good", "scene", "why")),
+      sec("什么时候不用", "用什么就够了", h("ul", { class: "pf-list bad" }, pf.skip.map(x => h("li", null, h("b", null, x.scene), h("span", null, h("span", { class: "pf-alt" }, "→ " + x.alt), " ", x.why)))))),
+    sec("选型前先问自己", "", h("ol", { class: "pf-decide" }, pf.decide.map(x => h("li", null, x)))),
+    sec("和相近组件对比", "", h("div", { class: "scroll-x" }, h("table", { class: "ptable" }, h("tbody", null, pf.vs.map(x => h("tr", null, h("td", { style: "white-space:nowrap" }, h("b", null, "vs " + x.other)), h("td", null, x.diff))))))),
+    sec("测试要点", "测开视角：怎么构造场景、看什么", h("div", { class: "pf-test" }, pf.test.map(g => h("div", null, h("b", null, g.area), h("ul", null, g.items.map(t => h("li", null, t))))))),
+    sec("常见线上问题", "现象 → 原因 → 怎么查", h("div", { class: "scroll-x" }, h("table", { class: "ptable pf-issues" },
+      h("thead", null, h("tr", null, h("th", null, "现象"), h("th", null, "原因"), h("th", null, "怎么查"))),
+      h("tbody", null, pf.issues.map(x => h("tr", null, h("td", null, x.symptom), h("td", null, x.cause), h("td", { class: "small" }, x.check))))))),
     bgRateRow(c, onRated));
 }
 function bgRateRow(c, onRated) {
@@ -158,10 +184,12 @@ function bgSelfTest(c) {
 function viewBG(r) {
   const sub = r.sub || "bg";
   if (!BG.chapters.length) return h("div", { class: "page" }, h("h1", null, "八股"), h("p", { class: "muted" }, "内容还没准备好。"));
-  if (sub === "bg-read") return viewCourse({
-    key: "bg", eyebrow: "八股 · 学习", title: "一张卡一个面试问题，先会说 30 秒版",
+  if (sub === "bg-comp" && !String(LS.get("tiyan:sec:bg", "")).startsWith("comp-")) LS.set("tiyan:sec:bg", "comp-map");
+  if (sub === "bg-read" || sub === "bg-comp") return viewCourse({
+    key: "bg", eyebrow: String(LS.get("tiyan:sec:bg", "")).startsWith("comp-") ? "八股 · 组件画像" : "八股 · 学习",
+    title: String(LS.get("tiyan:sec:bg", "")).startsWith("comp-") ? "每个组件：特性、优缺点、什么时候用、怎么测" : "一张卡一个面试问题，先会说 30 秒版",
     lede: "每张卡：30 秒版 → 得分点 → 讲透 → 易错 → 测开视角。「自测」标签先自己答再让 AI 按得分点打分；「追问」是面试官最可能接着问的。",
-    pageTabs: bgTabs("bg-read"),
+    pageTabs: bgTabs(String(LS.get("tiyan:sec:bg", "")).startsWith("comp-") ? "bg-comp" : "bg-read"),
     groups: bgGroups, text: bgText,
     searchHint: "搜索，如 回表、GIL、超卖、TIME_WAIT",
     teacher: BG_TEACHER,
@@ -190,7 +218,12 @@ function bgPage(k, eyebrow, title, body) {
 }
 function bgMapExtra(s) {
   const ch = BG.chapters.find(x => x.id === s.chId);
+  if (ch.id === "comp") return h("section", { class: "stack", style: "gap:10px" }, h("h3", null, `${ch.cards.length} 个组件`),
+    h("div", { class: "pf-grid" }, ch.cards.map(c => h("button", { type: "button", class: "pf-tile", onclick: () => bgOpenCard(c.id) },
+      h("span", { class: "spread" }, h("b", null, c.profile.name), h("span", { class: "bg-dot " + ((BGS.get(c.id) || {}).last || "new") })), h("span", { class: "tag" }, c.profile.cat), h("small", null, c.profile.one)))));
+  const rel = BG_PROFILES.filter(c => c.profile.chapter === ch.id);
   return h("section", { class: "stack", style: "gap:8px" },
+    rel.length ? h("div", { class: "row small" }, h("span", { class: "faint" }, "组件画像："), rel.map(c => h("button", { type: "button", class: "chip", onclick: () => bgOpenCard(c.id) }, c.profile.name + " 的特性、优缺点、选型与测试 →"))) : "",
     h("div", { class: "spread" }, h("h3", null, `本章 ${ch.cards.length} 张卡`), h("div", { class: "row" }, h("button", { class: "btn sm primary", type: "button", onclick: () => { LS.set("tiyan:bg:filter", { ch: [ch.id], lv1: false }); BG_SESSION = null; go("bg-cards"); } }, "本章闪卡"))),
     h("div", { class: "bg-cardlist" }, ch.cards.map(c => {
       const d = BGS.get(c.id);
@@ -211,7 +244,7 @@ function viewBGHome() {
     h("section", { class: "hero" },
       h("div", { class: "eyebrow" }, "八股 · 计算机基础"),
       h("h1", null, "面试官摸底时，", h("span", { class: "circ" }, "每题先说出 30 秒版", h("span", { html: CIRCLE }))),
-      h("p", { class: "lede" }, `${BG.chapters.length} 章 ${total} 张卡，覆盖一面最常摸底的基础：数据结构、进程线程与线程安全、MySQL 慢查询 / 事务 / 锁、Redis 缓存与超卖、消息队列、网络、操作系统与 Linux、Python / Java、设计模式、测试基础。每张卡都有 30 秒版、得分点、讲透、追问和测开视角。`),
+      h("p", { class: "lede" }, `${BG.chapters.length} 章 ${total} 张卡，先用「组件画像」看清每个组件的特性、优缺点、选型和测试要点，再按章补一面最常摸底的基础：数据结构、进程线程与线程安全、MySQL 慢查询 / 事务 / 锁、Redis 缓存与超卖、消息队列、网络、操作系统与 Linux、Python / Java、设计模式、测试基础。每张卡都有 30 秒版、得分点、讲透、追问和测开视角。`),
       h("div", { class: "stats" },
         h("div", { class: "stat" }, h("b", null, `${seen}`, h("small", { class: "faint", style: "font-size:14px" }, ` / ${total}`)), h("span", null, "学过")),
         h("div", { class: "stat" }, h("b", null, good), h("span", null, "会了")),
@@ -228,6 +261,7 @@ function viewBGHome() {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "建议顺序"), h("span", { class: "small faint" }, "每天 30–40 分钟，两周过完一遍")),
         h("div", { class: "rules" },
+          rule("先花 30 分钟看「组件画像」", "MySQL、Redis、MQ、ES 各是什么、优缺点、什么时候用、什么时候不用、测它要注意什么。先有全局，再学机制细节。"),
           rule("第 1–2 天：数据结构 + 进程线程", "摸底第一问就是“说出你知道的数据结构”“什么是线程安全”。先把这两章的必会卡说顺。"),
           rule("第 3–5 天：MySQL → Redis → 消息队列", "慢查询 / 索引 / 事务 / 锁，缓存问题与超卖，消息丢失 / 重复 / 积压，后端面试的主干。"),
           rule("第 6–8 天：网络 + 操作系统 + Python", "TCP、HTTPS、IO 多路复用、Linux 排查命令，再补 Python 语言特性和 pytest。"),
