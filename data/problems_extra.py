@@ -1,4 +1,4 @@
-from problems import P
+from problems import P, _str
 
 
 PROBLEMS_EXTRA = [
@@ -279,4 +279,67 @@ PROBLEMS_EXTRA = [
         "把“最后戳哪一个”作为决策，动态边界就变成固定区间边界。",
         ["按第一个戳的气球划分区间会丢失邻居信息", "区间边界的虚拟 1 不能忘记"],
     ),
+    P(
+        "longest-palindromic-substring", "最长回文子串", "two_pointers", "medium", 5,
+        "给定字符串 `s`，返回其中**最长的回文子串**（正着读和倒着读一样的连续子串）。\n\n如果有多个长度相同的最长回文子串，返回**最靠左**（起点下标最小）的那个。",
+        [{"input": "s = 'babad'", "output": "'bab'", "note": "'aba' 一样长，但 'bab' 起点更靠左"}, {"input": "s = 'cbbd'", "output": "'bb'", "note": "偶数长度的回文，中心在两个 b 之间"}],
+        ["1 <= len(s) <= 1000", "`s` 只包含数字和英文字母", "多个答案时返回起点最小的"],
+        "longestPalindrome", [("s", "str")], "str",
+        [["babad"], ["cbbd"], ["a"], ["ac"], ["aaaa"], ["abacdfgdcaba"], ["forgeeksskeegfor"], ["abcba" * 3], [_str(11, 600, "ab")], [_str(12, 900, "abc")]],
+        """
+        class Solution:
+            def longestPalindrome(self, s):
+                def expand(l, r):
+                    while l >= 0 and r < len(s) and s[l] == s[r]:
+                        l -= 1
+                        r += 1
+                    return l + 1, r - 1
+                start, end = 0, 0
+                for i in range(len(s)):
+                    for l, r in (expand(i, i), expand(i, i + 1)):
+                        if r - l > end - start:
+                            start, end = l, r
+                return s[start:end + 1]
+        """,
+        "时间 O(n²)，空间 O(1)",
+        ["题型：中心扩展（相向双指针反着用）。回文是“从中心往两边对称”的，枚举中心比枚举子串省一层。", "中心有 2n-1 个：每个字符（奇数长度）和每两个相邻字符之间（偶数长度）。", "从每个中心用 l、r 两个指针往外扩，两端字符相等就继续；扩不动时 [l+1, r-1] 就是以它为中心的最长回文，只在“严格更长”时更新答案，保证靠左。"],
+        "回文从中心对称：枚举 2n-1 个中心往两边扩，比枚举所有子串少一层循环。",
+        ["只枚举了奇数中心，'cbbd' 这种偶数回文会漏", "相等长度也更新会返回靠右的答案", "扩展停下时 l、r 已经多走了一步，答案是 [l+1, r-1]"],
+    ),
+    P(
+        "top-k-routes", "高频路线 Top K", "heap", "medium", 0,
+        "导航服务收到一批路线请求 `routes`，每条请求是 `[起点, 终点]`（地点名是字符串）。**A→B 和 B→A 算同一条路线**，起点和终点相同的请求是无效请求，直接忽略。\n\n统计每条路线被请求的次数，返回请求次数最多的 `k` 条路线。每条路线写成 `[字典序较小的地点, 字典序较大的地点]`；次数相同的按路线本身的字典序升序。不同路线不足 `k` 条时全部返回。",
+        [{"input": "routes = [['A','B'],['B','A'],['A','C'],['C','D'],['D','C'],['B','A']], k = 2", "output": "[['A','B'],['C','D']]", "note": "AB 3 次、CD 2 次、AC 1 次"}, {"input": "routes = [['x','y'],['y','x'],['x','x']], k = 3", "output": "[['x','y']]", "note": "x→x 无效；只有 1 条路线"}],
+        ["0 <= len(routes) <= 10^5", "1 <= k <= 10^4", "地点名是非空的字母数字字符串", "返回按次数降序、同次数按路线字典序升序"],
+        "topKRoutes", [("routes", "List[List[str]]"), ("k", "int")], "List[List[str]]",
+        [
+            [[["A", "B"], ["B", "A"], ["A", "C"], ["C", "D"], ["D", "C"], ["B", "A"]], 2],
+            [[["x", "y"], ["y", "x"], ["x", "x"]], 3],
+            [[], 1],
+            [[["a", "b"], ["c", "d"], ["e", "f"]], 2],
+            [[["b", "a"], ["a", "b"], ["d", "c"], ["c", "d"], ["a", "c"]], 1],
+            [[["s1", "s2"]] * 3 + [["s2", "s3"]] * 3 + [["s3", "s1"]] * 2, 2],
+            [[["p%d" % (i % 7), "p%d" % ((i * 3 + 1) % 7)] for i in range(200)], 4],
+            [[["n%d" % (i * 7 % 23), "n%d" % (i * 11 % 29)] for i in range(600)], 5],
+        ],
+        """
+        class Solution:
+            def topKRoutes(self, routes, k):
+                cnt = Counter()
+                for a, b in routes:
+                    if a == b:
+                        continue
+                    cnt[(min(a, b), max(a, b))] += 1
+                best = heapq.nsmallest(k, cnt.items(), key=lambda kv: (-kv[1], kv[0]))
+                return [list(route) for route, _ in best]
+        """,
+        "时间 O(n + m log k)（m 为不同路线数），空间 O(m)",
+        ["题型：哈希计数 + Top K。先把“同一条路线”规范成同一个 key，再计数，最后取前 k。", "规范化：(min(a,b), max(a,b)) 让 A→B 和 B→A 落到同一个 key；起点等于终点的直接跳过。", "Counter 计数；取前 k 用 heapq.nsmallest(k, items, key=(-次数, 路线))，或者全排序后切片（数据小时更简单）。"],
+        "先规范化成同一个 key 再计数，Top K 用排序键 (-次数, 路线)。",
+        ["忘了把 B→A 规范成 A→B，同一路线被算成两条", "排序只按次数，次数相同时顺序不稳定", "用 tuple 当 key 计数，返回时要转回 list"],
+    ),
 ]
+
+for _p in PROBLEMS_EXTRA:
+    if _p["id"] == "top-k-routes":
+        _p["slug"] = ""

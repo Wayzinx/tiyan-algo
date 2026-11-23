@@ -1,5 +1,5 @@
 // ---------- 顶栏 / 路由 ----------
-const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["quiz", "识题"], ["kb", "AI 知识"], ["sd", "设计编码"], ["fs", "全栈"], ["cap", "项目实战"], ["mock", "模拟面试"], ["iv", "面经"], ["ask", "问老师"]];
+const NAV = [["home", "首页"], ["learn", "题型"], ["py", "Python"], ["problems", "题库"], ["review", "复习"], ["think", "思路"], ["bg", "八股"], ["kb", "AI 知识"], ["sd", "设计编码"], ["fs", "全栈"], ["cap", "项目实战"], ["mock", "模拟面试"], ["iv", "面经"], ["ask", "问老师"]];
 let cleanups = [];
 function onLeave(fn) { cleanups.push(fn); }
 function parseRoute() {
@@ -18,6 +18,9 @@ function parseRoute() {
   if (t === "fs") return { view: "fs", sub: "" };
   if (t.startsWith("fs-")) return { view: "fs", sub: t.slice(3) };
   if (t === "data") return { view: "data" };
+  if (t === "think") return { view: "think", sub: "" };
+  if (t.startsWith("think-")) return { view: "think", sub: t.slice(6) };
+  if (["bg", "bg-read", "bg-cards", "bg-probe"].includes(t)) return { view: "bg", sub: t };
   if (t.startsWith("cap-")) { const [id, mid] = t.slice(4).split("--"); return { view: "cap", id, mid }; }
   return { view: "home" };
 }
@@ -60,10 +63,10 @@ function renderNav() {
   nav.classList.remove("open");
   const mb = $("#menu-btn");
   if (mb && !mb._wired) { mb._wired = true; mb.addEventListener("click", () => { nav.classList.toggle("open"); mb.setAttribute("aria-expanded", nav.classList.contains("open")); }); }
-  if (mb) { const cur = NAV.find(([k]) => S.route && (S.route.view === k || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps") || (k === "problems" && S.route.view === "ws") || (k === "learn" && S.route.view === "pattern"))); mb.lastChild.textContent = cur ? cur[1] : "菜单"; }
+  if (mb) { const cur = NAV.find(([k]) => S.route && (S.route.view === k || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps") || (k === "problems" && S.route.view === "ws") || (k === "learn" && S.route.view === "pattern") || (k === "think" && S.route.view === "quiz"))); mb.lastChild.textContent = cur ? cur[1] : "菜单"; }
   const due = dueList().length;
   for (const [k, label] of NAV) {
-    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws") || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps"));
+    const on = S.route && (S.route.view === k || (k === "learn" && S.route.view === "pattern") || (k === "problems" && S.route.view === "ws") || (k === "kb" && S.route.view === "lab") || (k === "cap" && S.route.view === "caps") || (k === "think" && S.route.view === "quiz"));
     nav.append(h("a", { href: "#" + k, class: on ? "on" : "" }, label, k === "review" && due ? h("span", { class: "badge num" }, due) : ""));
   }
 }
@@ -125,7 +128,7 @@ function viewHome() {
     tasks.append(h("a", { class: "task", href: "#p-" + p.id },
       h("span", { class: "task-k n" }, "新"), h("span", null, h("span", { class: "task-t" }, p.title), h("br"), h("span", { class: "small faint" }, `${pname(p)} · ${LEVEL[p.level]} · 先读一遍「${pname(p)}」教程`)), h("span", { class: "lv " + p.level }, LEVEL[p.level])));
   }
-  if (!due.length && !fresh.length) tasks.append(h("p", { class: "muted" }, "内置题都做过了。去「识题训练」混合练习，或让 AI 出几道变体题。"));
+  if (!due.length && !fresh.length) tasks.append(h("p", { class: "muted" }, "内置题都做过了。去「思路」走思路阶梯、「识题训练」混合练习，或让 AI 出几道变体题。"));
   const title = due.length
     ? h("h1", null, "今天有 ", h("span", { class: "circ" }, `${due.length} 道题`, h("span", { html: CIRCLE })), "等你重写")
     : h("h1", null, "先认出", h("span", { class: "circ" }, "题眼", h("span", { html: CIRCLE })), "，再写代码");
@@ -143,11 +146,15 @@ function viewHome() {
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "今日任务"), h("a", { href: "#review", class: "small" }, "全部复习 →")),
         tasks,
-        h("div", { class: "row" }, h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn", href: "#py" }, "Python 语法速查"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
+        h("div", { class: "row" }, h("a", { class: "btn", href: "#think" }, "拿到题怎么想"), h("a", { class: "btn", href: "#quiz" }, "识题训练"), h("a", { class: "btn", href: "#py" }, "Python 语法速查"), h("a", { class: "btn ghost", href: "#ask" }, "导入一道题"))),
       h("section", { class: "panel" },
         h("div", { class: "panel-h" }, h("h2", null, "题型地图"), h("span", { class: "small faint" }, "13 个题型，覆盖面试里绝大多数题")),
         patternTiles())),
     h("div", { class: "hubs" },
+      h("a", { class: "panel hub", href: "#think" }, h("div", { class: "eyebrow" }, "思路"), h("h2", null, "拿到题没思路？按五步走"),
+        h("p", { class: "muted" }, `看输出定方向 → 写暴力 → 找浪费 → 换工具 → 写不变量。${Object.keys(THINK.ladders).length} 道题有分步思路阶梯，关键行填空真跑测试；另有 ${THINK.kit.length} 个 Python 盲写基本功。`)),
+      h("a", { class: "panel hub", href: "#bg" }, h("div", { class: "eyebrow" }, "八股"), h("h2", null, "面试官摸底，先说出 30 秒版"),
+        h("p", { class: "muted" }, `${BG.chapters.length} 章 ${BG_CARDS.length} 张卡：数据结构、线程安全、MySQL、Redis、MQ、网络、操作系统、Python / Java、设计模式、测试基础。闪卡复习 + 限时摸底 + AI 按得分点打分。`)),
       h("a", { class: "panel hub", href: "#mock" }, h("div", { class: "eyebrow" }, "模拟面试"), h("h2", null, "让 AI 面试官先问你一遍"),
         h("p", { class: "muted" }, "按你的简历和项目出题、追问；每题五维打分，给出优化后的回答和要补的知识，最后出复盘报告。")),
       h("a", { class: "panel hub", href: "#py" }, h("div", { class: "eyebrow" }, "Python 刷题语法"), h("h2", null, "思路有了，别卡在写法上"),
@@ -446,8 +453,9 @@ function viewQuiz() {
   };
   if (!QUIZ.cur) next(); else draw();
   return h("div", { class: "page", style: "max-width:820px" },
-    h("section", { class: "hero" }, h("div", { class: "eyebrow" }, "识题训练"), h("h1", null, "题目一变形就不会，多半是没认出题型"),
+    h("section", { class: "hero" }, h("div", { class: "eyebrow" }, "思路 · 识题"), h("h1", null, "题目一变形就不会，多半是没认出题型"),
       h("p", { class: "lede" }, "这里只给题面、隐藏题名，让你判断该用什么方法。答完会告诉你识别信号在哪句话里。每天花 5 分钟混着练，专治“换个说法就不认识”。")),
+    thTabs("quiz"),
     h("div", { class: "spread" }, scoreEl, h("button", { class: "btn ghost sm", type: "button", onclick: next }, "换一题")),
     box);
 }
@@ -506,7 +514,7 @@ function viewAsk() {
         h("div", { class: "row" }, btn), status)));
 }
 
-const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), iv: r => viewIV(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };
+const VIEWS = { home: viewHome, learn: viewLearn, pattern: viewPattern, problems: viewProblems, review: viewReview, quiz: viewQuiz, ask: viewAsk, kb: r => viewKB(r.sub), lab: r => viewLab(r), py: () => viewPython(), mock: () => viewMock(), caps: () => viewCapList(), sd: r => viewSD(r), fs: r => viewFS(r), iv: r => viewIV(r), think: r => viewThink(r), bg: r => viewBG(r), cap: r => viewCap(r), data: () => viewData(), ws: r => viewWorkspace(r) };
 
 // ---------- 外观：配色（雾紫 / 青瓷 / 暖杏）和深浅色 ----------
 const THEME_PALETTES = [["violet", "雾紫", "#7C6CFF", "#3D8BFF"], ["teal", "青瓷", "#0E9590", "#2A9DD8"], ["sand", "暖杏", "#C4562D", "#DE8A3B"]];

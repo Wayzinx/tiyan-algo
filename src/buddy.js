@@ -184,6 +184,7 @@ const Buddy = {
     const items = [];
     for (const c of (typeof KNOW !== "undefined" ? KNOW : [])) for (const s of c.sections || []) items.push({ id: "k-" + s.id, where: `AI 知识 › ${c.name} › ${s.title}`, text: [s.title, s.summary, s.md, (s.points || []).join("\n")].filter(Boolean).join("\n") });
     for (const s of (typeof PYDATA !== "undefined" ? PYDATA.sections : [])) items.push({ id: "py-" + s.id, where: `Python › ${s.title}`, text: [s.title, s.summary, s.md, s.algo, (s.pitfalls || []).join("\n")].filter(Boolean).join("\n") });
+    for (const c of (typeof BG_CARDS !== "undefined" ? BG_CARDS : [])) items.push({ id: "bg-" + c.id, where: `八股 › ${c.chName} › ${c.q}`, text: [c.q, c.short, c.points.join("\n"), c.explain, c.followups.map(f => f.q + "\n" + f.a).join("\n")].join("\n") });
     const sd = typeof sdLib === "function" && SDD.blocks.length ? sdLib().items : [];
     return this.lib = new Library(items.concat(sd.map(x => ({ id: x.id, where: x.where, text: x.text }))));
   },

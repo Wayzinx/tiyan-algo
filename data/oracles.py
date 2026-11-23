@@ -263,4 +263,14 @@ ORACLES = {
         gen_small=_code('def gen_small(rng):\n    return [[rng.randint(1, 8) for _ in range(rng.randint(1, 9))]]\n'),
         gen_large=_code('def gen_large(rng):\n    return [[rng.randint(1, 100) for _ in range(180)]]\n'),
     ),
+    'longest-palindromic-substring': dict(
+        brute=_code('class Solution:\n    def longestPalindrome(self, s):\n        best = s[:1]\n        n = len(s)\n        for i in range(n):\n            for j in range(i, n):\n                t = s[i:j + 1]\n                if t == t[::-1] and len(t) > len(best):\n                    best = t\n        return best\n'),
+        gen_small=_code("def gen_small(rng):\n    return [''.join(rng.choice('ab' if rng.random() < 0.5 else 'abc') for _ in range(rng.randint(1, 16)))]\n"),
+        gen_large=_code("def gen_large(rng):\n    return ['a' * 700 + 'b' + 'a' * 299]\n"),
+    ),
+    'top-k-routes': dict(
+        brute=_code('class Solution:\n    def topKRoutes(self, routes, k):\n        seen = []\n        counts = []\n        for a, b in routes:\n            if a == b:\n                continue\n            key = [a, b] if a < b else [b, a]\n            if key in seen:\n                counts[seen.index(key)] += 1\n            else:\n                seen.append(key)\n                counts.append(1)\n        order = list(range(len(seen)))\n        for i in range(len(order)):\n            for j in range(len(order) - 1 - i):\n                x, y = order[j], order[j + 1]\n                if (counts[x] < counts[y]) or (counts[x] == counts[y] and seen[x] > seen[y]):\n                    order[j], order[j + 1] = y, x\n        return [seen[i] for i in order[:k]]\n'),
+        gen_small=_code("def gen_small(rng):\n    places = ['A', 'B', 'C', 'D', 'E'][:rng.randint(1, 5)]\n    routes = [[rng.choice(places), rng.choice(places)] for _ in range(rng.randint(0, 20))]\n    return [routes, rng.randint(1, 6)]\n"),
+        gen_large=_code("def gen_large(rng):\n    routes = [['p%d' % rng.randint(0, 400), 'p%d' % rng.randint(0, 400)] for _ in range(100000)]\n    return [routes, 50]\n"),
+    ),
 }

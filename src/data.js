@@ -5,6 +5,8 @@ const DATA_GROUPS = [
   ["手写实战", k => k.startsWith("tiyan:lab:")],
   ["模拟面试（材料、项目卡、记录）", k => k.startsWith("tiyan:mock:")],
   ["项目实战", k => k.startsWith("tiyan:cap")],
+  ["八股（闪卡进度、摸底记录、自测草稿）", k => k.startsWith("tiyan:bg")],
+  ["思路阶梯与盲写基本功", k => k.startsWith("tiyan:think")],
   ["我的笔记", k => k === "tiyan:kb:docs"],
   ["偏好设置", k => /^tiyan:(rate|narrate|dsconf)$/.test(k)],
 ];
